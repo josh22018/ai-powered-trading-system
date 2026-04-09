@@ -1,0 +1,23 @@
+{
+  "initial_capital": 10000.0,
+  "cash": 10000.0,
+  "positions": {},
+  "trade_history": [],
+  "realized_pnl": 0.0,
+  "created_at": "2026-04-02T04:36:13.743808",
+  "valuation_history": [
+    {
+      "initial_capital": 10000.0,
+      "cash": 10000.0,
+      "positions": {},
+      "total_position_value": 0.0,
+      "total_portfolio_value": 10000.0,
+      "total_pnl": 0.0,
+      "total_pnl_pct": 0.0,
+      "realized_pnl": 0.0,
+      "best_performer": null,
+      "worst_performer": null,
+      "timestamp": "2026-04-02T04:36:13.918531"
+    }
+  ]
+}
