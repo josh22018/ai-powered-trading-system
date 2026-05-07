@@ -142,6 +142,27 @@ class OracleAgent:
         torch.save(self.model.state_dict(), MODEL_PATH)
         print(f'  [ORACLE] Model saved → {MODEL_PATH}')
 
+        # Export to ONNX
+        try:
+            onnx_path = MODEL_PATH.with_suffix('.onnx')
+            dummy_input = torch.randn(1, SEQUENCE_LEN, 8)
+            torch.onnx.export(
+                self.model,
+                dummy_input,
+                onnx_path,
+                export_params=True,
+                opset_version=14,
+                do_constant_folding=True,
+                input_names=['input'],
+                output_names=['output'],
+                dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
+            )
+            print(f'  [ORACLE] ONNX model exported → {onnx_path}')
+        except ImportError:
+            print('  [ORACLE] onnx not installed, skipping ONNX export.')
+        except Exception as e:
+            print(f'  [ORACLE] Failed to export ONNX model: {e}')
+
     # ------------------------------------------------------------------
     # Inference
     # ------------------------------------------------------------------

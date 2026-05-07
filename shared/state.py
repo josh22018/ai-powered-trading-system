@@ -230,6 +230,7 @@ class EngineState:
 
         return {
             'tickers': self.tickers,
+            'snapshots': self.snapshots,
             'indicators': {t: _ind(self.indicators.get(t)) for t in self.tickers},
             'signals': {t: _sig(self.signals.get(t)) for t in self.tickers},
             'positions': {t: _pos(self.positions.get(t)) for t in self.tickers},

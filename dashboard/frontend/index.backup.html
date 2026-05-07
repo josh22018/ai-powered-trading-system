@@ -604,24 +604,12 @@
   </div><!-- /page market -->
 
   <div class="page-section" data-page="3dbook">
-    <div class="panel" id="threed-view" style="padding: 0; overflow: hidden; height: 600px; position: relative; background: #0a0a1a; border-radius: 12px;">
-      <div id="three-container" style="width: 100%; height: 100%; cursor: grab;"></div>
-      <!-- HUD overlay -->
-      <div id="book3d-hud" style="position:absolute; top:0; left:0; right:0; padding:14px 18px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; z-index:10;">
-        <div style="background:rgba(10,10,26,0.85); backdrop-filter:blur(10px); border:1px solid rgba(100,200,255,0.15); padding:10px 16px; border-radius:10px;">
-          <div style="font-size:13px; font-weight:700; color:#7dd3fc; letter-spacing:1px; margin-bottom:4px;">3D ORDER BOOK</div>
-          <div style="font-size:11px; color:rgba(255,255,255,0.6); line-height:1.5;">
-            <span style="color:#4ade80;">■</span> Bids &nbsp;&nbsp;
-            <span style="color:#f87171;">■</span> Asks<br>
-            Drag to rotate · Scroll to zoom · Right-drag to pan
-          </div>
-        </div>
-        <div id="book3d-stats" style="background:rgba(10,10,26,0.85); backdrop-filter:blur(10px); border:1px solid rgba(100,200,255,0.15); padding:10px 16px; border-radius:10px; text-align:right;">
-          <div style="font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px;">Live Stats</div>
-          <div id="book3d-mid" style="font-size:16px; font-weight:700; color:#e0f2fe; margin:2px 0;">—</div>
-          <div id="book3d-spread" style="font-size:11px; color:rgba(255,255,255,0.5);">spread —</div>
-          <div id="book3d-depth" style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:2px;">depth —</div>
-        </div>
+    <div class="panel" id="threed-view" style="padding: 0; overflow: hidden; height: 500px; position: relative; background: #0b0e14;">
+      <div id="three-container" style="width: 100%; height: 100%;"></div>
+      <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 5px 10px; border-radius: 4px; font-size: 11px;">
+        <span style="color:#00ff88; font-weight: bold;">Bids (Green)</span> / <span style="color:#ff3355; font-weight: bold;">Asks (Red)</span><br>
+        <span style="opacity: 0.8">X: Price | Y: Time | Z: Volume</span><br>
+        <span style="opacity: 0.6; font-size: 9px; margin-top: 4px; display: inline-block;">Left Click + Drag to Rotate. Scroll to Zoom.</span>
       </div>
     </div>
   </div><!-- /page 3dbook -->
@@ -1401,183 +1389,121 @@ function switchPage(page) {
 }
 
 // ============================================================
-// 3D Order Book Visualization — Cyberpunk Edition
+// 3D Order Book Visualization
 // ============================================================
-let scene, camera, renderer, bookMesh, orbitControls, gridFloor;
-let bidGlowMesh, askGlowMesh;
-const BOOK_HISTORY_LEN = 60;
-const MAX_LEVELS = 10; // 5 bids + 5 asks
-const BAR_GAP = 1.4;
-const TIME_GAP = 1.0;
-let autoRotate = true;
+let scene, camera, renderer, bookMesh, controls;
+const BOOK_HISTORY_LEN = 50;
+const MAX_LEVELS = 10; // 5 bids, 5 asks
 
 function init3DBook() {
   const container = document.getElementById('three-container');
   if (!container) return;
 
-  const width = container.clientWidth || window.innerWidth || 800;
-  const height = container.clientHeight || 600;
-
-  // Scene — deep dark blue with fog
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x060614);
-  scene.fog = new THREE.FogExp2(0x060614, 0.012);
+  // Deep dark premium background
+  scene.background = new THREE.Color('#0b0e14');
+  scene.fog = new THREE.Fog('#0b0e14', 40, 100);
 
-  // Camera
-  camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 500);
-  camera.position.set(18, 22, 40);
-  camera.lookAt(0, 3, 0);
+  const width = container.clientWidth || window.innerWidth || 800;
+  const height = container.clientHeight || 500;
 
-  // Renderer
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+  camera.position.set(20, 30, 45); // More isometric and dynamic angle
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
   renderer.setSize(width, height);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setPixelRatio(window.devicePixelRatio); // Crisp rendering
   container.appendChild(renderer.domElement);
 
-  // Orbit Controls — interactive rotation, zoom, pan
-  orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
-  orbitControls.enableDamping = true;
-  orbitControls.dampingFactor = 0.08;
-  orbitControls.enablePan = true;
-  orbitControls.minDistance = 10;
-  orbitControls.maxDistance = 120;
-  orbitControls.maxPolarAngle = Math.PI / 2.1;
-  orbitControls.target.set(0, 3, -5);
-  orbitControls.autoRotate = true;
-  orbitControls.autoRotateSpeed = 0.6;
+  // OrbitControls for interactivity
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't go below ground
+  controls.target.set(0, 5, 0);
 
-  // Stop auto-rotate on user interaction
-  renderer.domElement.addEventListener('pointerdown', () => {
-    orbitControls.autoRotate = false;
-    autoRotate = false;
-  });
-
-  // Lighting — dramatic multi-source
-  const ambientLight = new THREE.AmbientLight(0x1a1a3e, 0.5);
+  // Lighting - dramatic lighting setup
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
   scene.add(ambientLight);
+  
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(20, 40, 20);
+  scene.add(dirLight);
 
-  const keyLight = new THREE.DirectionalLight(0x7dd3fc, 0.8);
-  keyLight.position.set(15, 30, 20);
-  keyLight.castShadow = true;
-  keyLight.shadow.mapSize.width = 1024;
-  keyLight.shadow.mapSize.height = 1024;
-  scene.add(keyLight);
+  const blueLight = new THREE.PointLight(0x4466ff, 1, 100);
+  blueLight.position.set(-20, 10, -20);
+  scene.add(blueLight);
 
-  const fillLight = new THREE.DirectionalLight(0x818cf8, 0.3);
-  fillLight.position.set(-10, 15, -10);
-  scene.add(fillLight);
-
-  // Neon point lights for glow
-  const bidGlow = new THREE.PointLight(0x22c55e, 1.2, 50);
-  bidGlow.position.set(-5, 10, 0);
-  scene.add(bidGlow);
-
-  const askGlow = new THREE.PointLight(0xef4444, 1.2, 50);
-  askGlow.position.set(5, 10, 0);
-  scene.add(askGlow);
-
-  // Ground grid
-  const gridHelper = new THREE.GridHelper(100, 40, 0x1e293b, 0x0f172a);
-  gridHelper.position.y = -0.01;
+  // Grid Helper to act as a floor
+  const gridHelper = new THREE.GridHelper(100, 50, 0x334455, 0x112233);
+  gridHelper.position.y = 0;
   scene.add(gridHelper);
 
-  // Reflective ground plane
-  const groundGeo = new THREE.PlaneGeometry(100, 100);
-  const groundMat = new THREE.MeshPhongMaterial({
-    color: 0x080820, specular: 0x222244, shininess: 80,
-    transparent: true, opacity: 0.7
+  // Book material and geometry (InstancedMesh for performance)
+  // Use cylinder for a sleeker look
+  const geometry = new THREE.BoxGeometry(0.85, 1, 0.85);
+  // Give it a slightly metallic and shiny look
+  const material = new THREE.MeshStandardMaterial({ 
+    color: 0xffffff, 
+    roughness: 0.2,
+    metalness: 0.5,
+    transparent: true, 
+    opacity: 0.85 
   });
-  gridFloor = new THREE.Mesh(groundGeo, groundMat);
-  gridFloor.rotation.x = -Math.PI / 2;
-  gridFloor.position.y = -0.02;
-  gridFloor.receiveShadow = true;
-  scene.add(gridFloor);
-
-  // Center axis glow line (mid-price marker)
-  const axisGeo = new THREE.BoxGeometry(0.05, 0.05, BOOK_HISTORY_LEN * TIME_GAP + 10);
-  const axisMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.4 });
-  const axisLine = new THREE.Mesh(axisGeo, axisMat);
-  axisLine.position.set(0, 0.03, -(BOOK_HISTORY_LEN * TIME_GAP) / 2);
-  scene.add(axisLine);
-
-  // InstancedMesh for order book bars
-  const barGeo = new THREE.BoxGeometry(1, 1, 0.7);
-  const barMat = new THREE.MeshPhongMaterial({
-    color: 0xffffff, transparent: true, opacity: 0.92,
-    shininess: 120, specular: 0x444466
-  });
-  bookMesh = new THREE.InstancedMesh(barGeo, barMat, BOOK_HISTORY_LEN * MAX_LEVELS);
+  
+  bookMesh = new THREE.InstancedMesh(geometry, material, BOOK_HISTORY_LEN * MAX_LEVELS);
   bookMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  bookMesh.castShadow = true;
-  bookMesh.receiveShadow = true;
-
-  // Initialize all instances as hidden
+  
   const dummy = new THREE.Object3D();
-  const defColor = new THREE.Color(0x000000);
-  dummy.position.set(0, -100, 0);
+  const defaultColor = new THREE.Color(0xffffff);
+  dummy.position.set(0, 0, 1000);
   dummy.scale.set(0, 0, 0);
   dummy.updateMatrix();
-  for (let i = 0; i < BOOK_HISTORY_LEN * MAX_LEVELS; i++) {
+  for(let i=0; i<BOOK_HISTORY_LEN * MAX_LEVELS; i++) {
     bookMesh.setMatrixAt(i, dummy.matrix);
-    bookMesh.setColorAt(i, defColor);
+    bookMesh.setColorAt(i, defaultColor);
   }
   bookMesh.instanceMatrix.needsUpdate = true;
-  if (bookMesh.instanceColor) bookMesh.instanceColor.needsUpdate = true;
+  if(bookMesh.instanceColor) bookMesh.instanceColor.needsUpdate = true;
+  
   scene.add(bookMesh);
 
-  // Resize
-  const resizeObs = new ResizeObserver(() => {
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w > 0 && h > 0) {
-      camera.aspect = w / h;
+  // Resize handler
+  window.addEventListener('resize', () => {
+    if (container.clientWidth > 0) {
+      camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
+      renderer.setSize(container.clientWidth, container.clientHeight);
     }
   });
-  resizeObs.observe(container);
 
   animate3D();
 }
 
 function animate3D() {
   requestAnimationFrame(animate3D);
-  if (!renderer || !scene || !camera) return;
-  if (orbitControls) orbitControls.update();
-  renderer.render(scene, camera);
+  if (controls) controls.update(); // Required if damping is enabled
+  if (renderer && scene && camera) {
+    renderer.render(scene, camera);
+  }
 }
 
-// Historical snapshot queue
+// Store historical snapshots for the 3D view
 const bookHistory = [];
 
 function update3DBook(snap) {
   if (!snap || !bookMesh) return;
-
-  // Throttle to ~10 fps
+  
+  // Throttle updates to ~10fps to avoid excessive mesh rebuilding overhead
+  // while keeping it visually active
   const now = Date.now();
-  if (update3DBook._last && (now - update3DBook._last < 100)) return;
-  update3DBook._last = now;
+  if (update3DBook.lastUpdate && (now - update3DBook.lastUpdate < 100)) return;
+  update3DBook.lastUpdate = now;
 
   bookHistory.push(snap);
   if (bookHistory.length > BOOK_HISTORY_LEN) bookHistory.shift();
 
-  // Update HUD stats
-  const mid3d = document.getElementById('book3d-mid');
-  const spr3d = document.getElementById('book3d-spread');
-  const dep3d = document.getElementById('book3d-depth');
-  if (mid3d && snap.mid_price != null) mid3d.textContent = '$' + Number(snap.mid_price).toFixed(4);
-  if (spr3d && snap.spread != null) spr3d.textContent = 'spread $' + Number(snap.spread).toFixed(4);
-  if (dep3d) {
-    const bv = snap.total_bid_volume || 0;
-    const av = snap.total_ask_volume || 0;
-    dep3d.textContent = 'bid ' + bv.toLocaleString() + ' / ask ' + av.toLocaleString();
-  }
-
-  // Find max volume for normalization
-  let maxVol = 1;
+  let maxVol = 1; // Prevent div by zero
   bookHistory.forEach(s => {
     (s.bids || []).forEach(b => { if (b[1] > maxVol) maxVol = b[1]; });
     (s.asks || []).forEach(a => { if (a[1] > maxVol) maxVol = a[1]; });
@@ -1585,77 +1511,57 @@ function update3DBook(snap) {
 
   const dummy = new THREE.Object3D();
   const color = new THREE.Color();
-  const bidColorBase = new THREE.Color(0x22c55e);
-  const bidColorBright = new THREE.Color(0x86efac);
-  const askColorBase = new THREE.Color(0xef4444);
-  const askColorBright = new THREE.Color(0xfca5a5);
-
-  let idx = 0;
+  
+  let i = 0;
+  // Iterate history from oldest to newest (z-axis)
   for (let t = 0; t < bookHistory.length; t++) {
     const s = bookHistory[t];
     const bids = (s.bids || []).slice(0, 5);
     const asks = (s.asks || []).slice(0, 5);
+    
+    // Z-position: newer = closer to 0, older = further back
+    const z = (BOOK_HISTORY_LEN - t) - (BOOK_HISTORY_LEN / 2);
 
-    // Time position: newest at front (z=0), oldest recedes
-    const z = -(bookHistory.length - 1 - t) * TIME_GAP;
-    // Opacity/brightness fades for older entries
-    const age = t / Math.max(1, bookHistory.length - 1); // 0=oldest, 1=newest
+    // Bids (left side, negative X)
+    bids.forEach((b, idx) => {
+      const vol = b[1];
+      const h = Math.max(0.1, (vol / maxVol) * 15);
+      
+      // X-position: closer to mid = closer to 0
+      const x = -(5 - idx) * 1.5;
+      
+      dummy.position.set(x, h/2, z);
+      dummy.scale.set(1, h, 1);
+      dummy.updateMatrix();
+      bookMesh.setMatrixAt(i, dummy.matrix);
+      color.setHex(0x00ff88); // Neon Green
+      bookMesh.setColorAt(i, color);
+      i++;
+    });
 
-    // Bids: left of center (negative X)
-    for (let lvl = 0; lvl < 5; lvl++) {
-      if (lvl < bids.length) {
-        const vol = bids[lvl][1];
-        const norm = vol / maxVol;
-        const h = Math.max(0.15, norm * 18);
-        const x = -(lvl + 1) * BAR_GAP;
-
-        dummy.position.set(x, h / 2, z);
-        dummy.scale.set(1.1, h, 0.65);
-        dummy.updateMatrix();
-        bookMesh.setMatrixAt(idx, dummy.matrix);
-
-        color.copy(bidColorBase).lerp(bidColorBright, norm * 0.7 * age);
-        bookMesh.setColorAt(idx, color);
-      } else {
-        dummy.position.set(0, -100, 0);
-        dummy.scale.set(0, 0, 0);
-        dummy.updateMatrix();
-        bookMesh.setMatrixAt(idx, dummy.matrix);
-      }
-      idx++;
-    }
-
-    // Asks: right of center (positive X)
-    for (let lvl = 0; lvl < 5; lvl++) {
-      if (lvl < asks.length) {
-        const vol = asks[lvl][1];
-        const norm = vol / maxVol;
-        const h = Math.max(0.15, norm * 18);
-        const x = (lvl + 1) * BAR_GAP;
-
-        dummy.position.set(x, h / 2, z);
-        dummy.scale.set(1.1, h, 0.65);
-        dummy.updateMatrix();
-        bookMesh.setMatrixAt(idx, dummy.matrix);
-
-        color.copy(askColorBase).lerp(askColorBright, norm * 0.7 * age);
-        bookMesh.setColorAt(idx, color);
-      } else {
-        dummy.position.set(0, -100, 0);
-        dummy.scale.set(0, 0, 0);
-        dummy.updateMatrix();
-        bookMesh.setMatrixAt(idx, dummy.matrix);
-      }
-      idx++;
-    }
+    // Asks (right side, positive X)
+    asks.forEach((a, idx) => {
+      const vol = a[1];
+      const h = Math.max(0.1, (vol / maxVol) * 15);
+      
+      const x = (idx + 1) * 1.5;
+      
+      dummy.position.set(x, h/2, z);
+      dummy.scale.set(1, h, 1);
+      dummy.updateMatrix();
+      bookMesh.setMatrixAt(i, dummy.matrix);
+      color.setHex(0xff3355); // Neon Red
+      bookMesh.setColorAt(i, color);
+      i++;
+    });
   }
 
-  // Hide remaining unused instances
-  for (; idx < BOOK_HISTORY_LEN * MAX_LEVELS; idx++) {
-    dummy.position.set(0, -100, 0);
+  // Hide unused instances
+  for (; i < BOOK_HISTORY_LEN * MAX_LEVELS; i++) {
+    dummy.position.set(0, 0, 1000);
     dummy.scale.set(0, 0, 0);
     dummy.updateMatrix();
-    bookMesh.setMatrixAt(idx, dummy.matrix);
+    bookMesh.setMatrixAt(i, dummy.matrix);
   }
 
   bookMesh.instanceMatrix.needsUpdate = true;

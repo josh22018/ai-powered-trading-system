@@ -81,47 +81,40 @@
 
 ## Setup & Installation
 
-### Prerequisites
+### 1. Requirements
 
-- Python 3.10+
-- macOS or Linux (POSIX shared memory required for `RingBuffer`)
-- ~200 MB disk for a sample ITCH data file
-
-### Install
-
+Install the dependencies:
 ```bash
-git clone https://github.com/josh22018/ai-powered-trading-system.git
-cd ai-powered-trading-system
-python3 -m venv venv
-source venv/bin/activate
-pip install -r venv/requirements.txt   # or install from imports: fastapi uvicorn numpy torch
+pip install -r requirements.txt
 ```
 
-### Generate synthetic ITCH data (if you don't have a real feed file)
+### 2. Startup
 
+You can run the engine using the provided startup scripts.
+
+**On Linux / macOS:**
 ```bash
-./start.sh gen
-# or directly:
-python3 data/generate_sample.py
+# Full Engine (Feed + Agents + Dashboard)
+./start.sh all
+
+# Sub-components
+./start.sh feed    # Parser only
+./start.sh gen     # Generate data only
+./start.sh agents  # Phase 2 agent test
 ```
 
-This creates `~/kairos-x/data/sample.NASDAQ_ITCH50` — a synthetic binary file conforming to ITCH 5.0 message format.
+**On Windows:**
+```cmd
+# Full Engine (Feed + Agents + Dashboard)
+start.bat all
 
-### Run the full engine
-
-```bash
-./start.sh
+# Sub-components
+start.bat feed    # Parser only
+start.bat gen     # Generate data only
+start.bat agents  # Phase 2 agent test
+start.bat spoof   # Spoofing Detection Demo
 ```
-
-The dashboard will be available at `http://127.0.0.1:5001`.
-
-### Run modes
-
-```bash
-./start.sh all    # full engine: feed + agents + dashboard (default)
-./start.sh feed   # feed pipeline only (no dashboard)
-./start.sh gen    # regenerate synthetic data only
-```
+Alternatively, use `./start.ps1`.
 
 ### Environment overrides
 
@@ -155,17 +148,36 @@ DASHBOARD_PORT=8080 \
 
 **Consequences.** The `rb.cleanup()` call in the orchestrator's `finally` block is mandatory — POSIX shared memory segments are OS-level resources that persist across process restarts if not explicitly unlinked.
 
----
-
 ### ADR-002: Single asyncio Event Loop for All Subsystems (Including uvicorn)
 
 **Context.** The system has seven concurrent subsystems: one feed parser, one snapshot pump, four AI agents, and one HTTP/WebSocket server. The most common approach would be to run the dashboard in a separate process and communicate over IPC or a local socket.
 
 **Decision.** All seven subsystems run as `asyncio.Task` objects within a single event loop. uvicorn is configured with `loop='none'` to join the existing loop rather than creating its own.
 
-**Rationale.** This yields two concrete benefits. First, agents can write to `EngineState` and the dashboard can read from it with zero serialization cost — no pickle, no JSON, no socket roundtrip. Second, the orchestrator gains a single point of lifecycle control: one `asyncio.gather(*tasks, return_exceptions=True)` in the `finally` block cancels all subsystems atomically on SIGINT or SIGTERM. The alternative (multiprocessing) would require a shared-memory or socket-based state sync protocol, significantly increasing complexity for a system where latency between agent output and dashboard display is not a hard requirement.
+## Phase 4: Execution & Dashboard (WebGPU + 3D)
+Finally, we visualize the neuro-symbolic framework in action with a 3D terrain representation of the order book using Three.js.
 
-**Consequences.** A blocking call in any subsystem will stall the entire engine. All AI model inference must be either fast enough to not noticeably delay other tasks, or offloaded to a thread pool via `asyncio.to_thread`. This is a known limitation documented in the roadmap below.
+### Components
+1. **FastAPI Backend (`app.py`)**: Subscribes to the `EngineState` and pushes JSON updates via WebSockets at 60fps.
+2. **Dashboard (`index.html`)**: Connects to the WebSocket. Renders the 3D limit order book terrain, candlestick charts, agent signals, and virtual portfolio value.
+3. **Analytics (`tools/analytics.py`)**: Computes post-run Sharpe ratio, max drawdown, and win rate.
+4. **Spoofing Demo (`tools/spoof_demo.py`)**: Script to manually inject order-book anomalies and trigger the Guardian's autoencoder circuit breaker.
+
+## Spoofing Detection Demo
+
+To witness the Guardian's autoencoder in action:
+1. Start the full engine: `start.bat all` (or `./start.sh all`)
+2. Open the dashboard at `http://127.0.0.1:5001`
+3. In a new terminal, run: `start.bat spoof`
+4. The script will inject massive imbalanced volume into the shared memory state.
+5. The Guardian will immediately flag the anomaly and issue a `HALT` command, turning the dashboard risk panel red.
+
+## Post-Run Analytics
+
+To view performance metrics after a run:
+```bash
+python tools/analytics.py
+```
 
 ---
 

@@ -1,0 +1,23 @@
+# Kairos X — Python Dependencies
+# Install: pip install -r requirements.txt
+
+# Core
+numpy>=1.24.0
+msgpack>=1.0.5
+sortedcontainers>=2.4.0
+
+# Deep Learning
+torch>=2.0.0
+onnx>=1.14.0
+onnxruntime>=1.15.0
+
+# Reinforcement Learning
+gymnasium>=0.29.0
+stable-baselines3>=2.1.0
+
+# Web / Dashboard
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Utilities
+websockets>=12.0
