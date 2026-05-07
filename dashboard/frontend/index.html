@@ -1,933 +1,1402 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Kairos X — Trading Dashboard</title>
-<!-- Lightweight Charts v4 (TradingView) for candlestick + line charts -->
-<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<!-- Three.js for 3D order book visualization -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-<style>
-  :root {
-    --bg:       #f0f2f5;
-    --panel:    #ffffff;
-    --border:   #d0d5e0;
-    --accent:   #2563eb;
-    --green:    #16a34a;
-    --red:      #dc2626;
-    --yellow:   #d97706;
-    --muted:    #64748b;
-    --text:     #1e293b;
-    --text-dim: #475569;
-    --mono:     'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-  }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kairos X — Trading Dashboard</title>
+  <!-- Lightweight Charts v4 (TradingView) for candlestick + line charts -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <!-- Three.js for 3D order book visualization -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --panel: #ffffff;
+      --border: #d0d5e0;
+      --accent: #2563eb;
+      --green: #16a34a;
+      --red: #dc2626;
+      --yellow: #d97706;
+      --muted: #64748b;
+      --text: #1e293b;
+      --text-dim: #475569;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.5;
-  }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.5;
+    }
 
-  /* ---- Header ---- */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-  }
-  header h1 { font-size: 16px; color: var(--accent); letter-spacing: 2px; }
-  #status-pill {
-    padding: 3px 10px; border-radius: 12px; font-size: 11px;
-    background: #dcfce7; color: var(--green); border: 1px solid var(--green);
-  }
-  #status-pill.disconnected { background: #fee2e2; color: var(--red); border-color: var(--red); }
+    /* ---- Header ---- */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
 
-  /* ---- Main layout ---- */
-  main {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 14px;
-  }
+    header h1 {
+      font-size: 16px;
+      color: var(--accent);
+      letter-spacing: 2px;
+    }
 
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px 14px;
-  }
-  .panel > h2 {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--muted);
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 6px;
-  }
-  .sub-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: var(--muted);
-    margin-bottom: 6px;
-  }
+    #status-pill {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      background: #dcfce7;
+      color: var(--green);
+      border: 1px solid var(--green);
+    }
 
-  /* ---- Portfolio ---- */
-  .portfolio-grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 8px;
-  }
-  .kpi { text-align: center; }
-  .kpi .label { color: var(--text-dim); font-size: 11px; }
-  .kpi .value { font-size: 18px; font-weight: 700; }
-  .pos { color: var(--green); }
-  .neg { color: var(--red); }
-  .neu { color: var(--text); }
-  #pf-chart-container {
-    height: 80px;
-    margin-top: 12px;
-    border-top: 1px solid var(--border);
-    padding-top: 4px;
-  }
+    #status-pill.disconnected {
+      background: #fee2e2;
+      color: var(--red);
+      border-color: var(--red);
+    }
 
-  /* ---- Ticker selector bar ---- */
-  .selector-bar {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-  }
-  .selector-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-  .selector-group select {
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 4px 10px;
-    font-family: var(--mono);
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-    padding-right: 22px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 7px center;
-  }
-  .selector-group select:focus { border-color: var(--accent); }
-  .selector-group select:disabled { opacity: 0.45; cursor: default; }
-  #ticker-mid-display {
-    margin-left: auto;
-    color: var(--accent);
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
+    /* ---- Main layout ---- */
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px;
+    }
 
-  /* ---- Main chart ---- */
-  #main-chart-container {
-    height: 330px;
-    position: relative;
-    border-radius: 4px;
-    overflow: hidden;
-  }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+    }
 
-  /* ---- Sub-grid (book / indicators / signal+pos+risk) ---- */
-  .sub-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
-  .sub-col { }
+    .panel>h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
 
-  /* ---- Order book ---- */
-  .book-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    font-size: 12px;
-  }
-  .col-hdr {
-    color: var(--muted); font-size: 10px; display: flex;
-    justify-content: space-between; margin-bottom: 4px;
-  }
-  .book-row {
-    display: flex; justify-content: space-between;
-    padding: 2px 0; border-bottom: 1px solid #e2e8f0;
-  }
-  .bid .price { color: var(--green); }
-  .ask .price { color: var(--red); }
-  .book-row .shares { color: var(--text-dim); }
+    .sub-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
 
-  /* ---- Indicators ---- */
-  .ind-row { display: flex; justify-content: space-between; padding: 2px 0; }
-  .ind-label { color: var(--text-dim); font-size: 12px; }
-  .ind-val   { font-weight: 600; font-size: 12px; }
-  .imbal-track {
-    position: relative; height: 5px; background: var(--border);
-    border-radius: 3px; margin: 3px 0 8px; overflow: hidden;
-  }
-  .imbal-fill {
-    position: absolute; top: 0; height: 100%; border-radius: 3px;
-    transition: left 0.4s, width 0.4s, background 0.4s;
-  }
-  .imbal-center {
-    position: absolute; left: 50%; top: -1px;
-    width: 1px; height: 7px; background: var(--muted); opacity: 0.4;
-  }
+    /* ---- Portfolio ---- */
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
 
-  /* ---- Signal ---- */
-  .signal-box { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-  .sig-badge {
-    padding: 6px 22px; border-radius: 4px;
-    font-size: 20px; font-weight: 800; letter-spacing: 2px;
-  }
-  .sig-BUY  { background: #dcfce7; color: var(--green); border: 2px solid var(--green); }
-  .sig-SELL { background: #fee2e2; color: var(--red);   border: 2px solid var(--red);   }
-  .sig-HOLD { background: #f1f5f9; color: var(--muted); border: 2px solid var(--border);}
-  .sig-conf { color: var(--text-dim); font-size: 11px; text-align: center; }
-  .sig-reason { color: var(--text-dim); font-size: 10px; text-align: center; max-width: 200px; }
-  .conf-track { width: 90%; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .conf-fill { height: 100%; border-radius: 3px; transition: width 0.4s, background 0.4s; }
+    .kpi {
+      text-align: center;
+    }
 
-  /* ---- Position ---- */
-  .pos-none { color: var(--muted); font-size: 12px; padding: 8px 0; }
-  .pos-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-  .pos-item { display: flex; flex-direction: column; }
-  .pi-label { font-size: 10px; color: var(--text-dim); }
-  .pi-val   { font-size: 13px; font-weight: 700; }
+    .kpi .label {
+      color: var(--text-dim);
+      font-size: 11px;
+    }
 
-  /* ---- Risk ---- */
-  .risk-ok   { color: var(--green); font-size: 12px; }
-  .risk-halt { color: var(--red); font-weight: 700; font-size: 12px; }
-  .risk-reason { color: var(--text-dim); font-size: 11px; margin-top: 4px; }
+    .kpi .value {
+      font-size: 18px;
+      font-weight: 700;
+    }
 
-  /* ---- Agents ---- */
-  .agent-grid { display: flex; gap: 24px; flex-wrap: wrap; }
-  .agent-item { display: flex; flex-direction: column; align-items: center; }
-  .agent-item .a-name  { font-size: 10px; color: var(--text-dim); }
-  .agent-item .a-ticks { font-size: 18px; color: var(--accent); }
+    .pos {
+      color: var(--green);
+    }
 
-  /* ---- Log ---- */
-  #log-box {
-    background: #f8fafc; border: 1px solid var(--border);
-    border-radius: 4px; height: 160px; overflow-y: auto;
-    padding: 8px 10px; font-size: 11px; color: var(--text-dim);
-  }
-  #log-box .log-line { padding: 1px 0; border-bottom: 1px solid #e2e8f0; }
-  #log-box .log-line:last-child { color: var(--text); }
+    .neg {
+      color: var(--red);
+    }
 
-  /* ---- Divider inside sig/pos/risk col ---- */
-  .col-divider { border-top: 1px solid var(--border); margin: 8px 0; }
+    .neu {
+      color: var(--text);
+    }
 
-  /* ---- Target Calculator ---- */
-  .target-calc-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-    align-items: start;
-  }
-  .target-input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .target-input-group label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: var(--muted);
-  }
-  .target-input-row {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-  .target-input-row input {
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 6px 10px;
-    font-family: var(--mono);
-    font-size: 13px;
-    width: 160px;
-    outline: none;
-  }
-  .target-input-row input:focus { border-color: var(--accent); }
-  .target-btn {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 6px 14px;
-    font-family: var(--mono);
-    font-size: 12px;
-    cursor: pointer;
-    letter-spacing: 0.5px;
-  }
-  .target-btn:hover { opacity: 0.85; }
-  .target-stat { display: flex; flex-direction: column; gap: 4px; }
-  .target-stat .t-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
-  .target-stat .t-val   { font-size: 20px; font-weight: 700; }
-  .target-stat .t-sub   { font-size: 11px; color: var(--text-dim); }
-  .target-suggestions {
-    grid-column: 1 / -1;
-    border-top: 1px solid var(--border);
-    padding-top: 10px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .suggestion-pill {
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    background: var(--bg);
-  }
-  .suggestion-pill.good    { border-color: var(--green); color: var(--green); background: #dcfce7; }
-  .suggestion-pill.warn    { border-color: var(--yellow); color: var(--yellow); background: #fef3c7; }
-  .suggestion-pill.bad     { border-color: var(--red); color: var(--red); background: #fee2e2; }
-  .suggestion-pill.neutral { border-color: var(--accent); color: var(--accent); background: #dbeafe; }
+    #pf-chart-container {
+      height: 80px;
+      margin-top: 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 4px;
+    }
 
-  /* ---- Investment Forecast ---- */
-  .forecast-input-row {
-    display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;
-  }
-  .forecast-input-row input, .forecast-input-row select {
-    background: var(--bg); color: var(--text); border: 1px solid var(--border);
-    border-radius: 4px; padding: 6px 10px; font-family: var(--mono); font-size: 13px; outline: none;
-  }
-  .forecast-input-row input { width: 150px; }
-  .forecast-input-row input:focus, .forecast-input-row select:focus { border-color: var(--accent); }
-  .forecast-input-row select {
-    appearance: none; -webkit-appearance: none; padding-right: 22px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 7px center;
-  }
-  .forecast-scenarios {
-    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 4px;
-  }
-  .scenario-card {
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 6px; padding: 12px; text-align: center;
-  }
-  .scenario-card.pess { border-color: #dc262644; }
-  .scenario-card.base { border-color: #2563eb44; }
-  .scenario-card.opti { border-color: #16a34a44; }
-  .scenario-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 4px; }
-  .scenario-mult  { font-size: 10px; color: #94a3b8; margin-bottom: 8px; }
-  .scenario-value { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-  .scenario-roi   { font-size: 12px; }
-  .forecast-note  { font-size: 11px; color: var(--text-dim); margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+    /* ---- Ticker selector bar ---- */
+    .selector-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
 
-  /* ---- Live Simulator ---- */
-  .sim-form-row {
-    display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;
-  }
-  .sim-form-row input {
-    background: var(--bg); color: var(--text); border: 1px solid var(--border);
-    border-radius: 4px; padding: 6px 10px; font-family: var(--mono); font-size: 13px;
-    width: 160px; outline: none;
-  }
-  .sim-form-row input:focus { border-color: var(--accent); }
-  .sim-btn {
-    background: var(--green); color: #ffffff; border: none; border-radius: 4px;
-    padding: 6px 16px; font-family: var(--mono); font-size: 12px; font-weight: 700;
-    cursor: pointer; letter-spacing: 0.5px;
-  }
-  .sim-btn:hover { opacity: 0.85; }
-  .inv-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .inv-table th {
-    color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
-    padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--border);
-  }
-  .inv-table th:first-child { text-align: left; }
-  .inv-table td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; }
-  .inv-table td:first-child { text-align: left; color: var(--text-dim); }
-  .close-inv-btn {
-    background: none; border: 1px solid var(--border); color: var(--red);
-    border-radius: 3px; padding: 2px 7px; font-size: 12px; cursor: pointer; font-family: var(--mono);
-  }
-  .close-inv-btn:hover { border-color: var(--red); background: #fee2e2; }
-  #inv-empty { color: var(--muted); font-size: 12px; padding: 8px 0; }
+    .selector-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
 
-  /* ---- Tab navigation ---- */
-  nav.tab-bar {
-    display: flex;
-    gap: 0;
-    padding: 0 14px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-  }
-  .tab-btn {
-    padding: 10px 20px;
-    font-family: var(--mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--muted);
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    margin-bottom: -1px;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  .tab-btn:hover { color: var(--text); }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-  /* Page sections — hidden by default, display:contents when active so
+    .selector-group select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 22px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 7px center;
+    }
+
+    .selector-group select:focus {
+      border-color: var(--accent);
+    }
+
+    .selector-group select:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    #ticker-mid-display {
+      margin-left: auto;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* ---- Main chart ---- */
+    #main-chart-container {
+      height: 330px;
+      position: relative;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    /* ---- Sub-grid (book / indicators / signal+pos+risk) ---- */
+    .sub-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .sub-col {}
+
+    /* ---- Order book ---- */
+    .book-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .col-hdr {
+      color: var(--muted);
+      font-size: 10px;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .book-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .bid .price {
+      color: var(--green);
+    }
+
+    .ask .price {
+      color: var(--red);
+    }
+
+    .book-row .shares {
+      color: var(--text-dim);
+    }
+
+    /* ---- Indicators ---- */
+    .ind-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+
+    .ind-label {
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    .ind-val {
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .imbal-track {
+      position: relative;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      margin: 3px 0 8px;
+      overflow: hidden;
+    }
+
+    .imbal-fill {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      border-radius: 3px;
+      transition: left 0.4s, width 0.4s, background 0.4s;
+    }
+
+    .imbal-center {
+      position: absolute;
+      left: 50%;
+      top: -1px;
+      width: 1px;
+      height: 7px;
+      background: var(--muted);
+      opacity: 0.4;
+    }
+
+    /* ---- Signal ---- */
+    .signal-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sig-badge {
+      padding: 6px 22px;
+      border-radius: 4px;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .sig-BUY {
+      background: #dcfce7;
+      color: var(--green);
+      border: 2px solid var(--green);
+    }
+
+    .sig-SELL {
+      background: #fee2e2;
+      color: var(--red);
+      border: 2px solid var(--red);
+    }
+
+    .sig-HOLD {
+      background: #f1f5f9;
+      color: var(--muted);
+      border: 2px solid var(--border);
+    }
+
+    .sig-conf {
+      color: var(--text-dim);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .sig-reason {
+      color: var(--text-dim);
+      font-size: 10px;
+      text-align: center;
+      max-width: 200px;
+    }
+
+    .conf-track {
+      width: 90%;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .conf-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s, background 0.4s;
+    }
+
+    /* ---- Position ---- */
+    .pos-none {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 0;
+    }
+
+    .pos-detail {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .pos-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pi-label {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .pi-val {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* ---- Risk ---- */
+    .risk-ok {
+      color: var(--green);
+      font-size: 12px;
+    }
+
+    .risk-halt {
+      color: var(--red);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .risk-reason {
+      color: var(--text-dim);
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    /* ---- Agents ---- */
+    .agent-grid {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .agent-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .agent-item .a-name {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .agent-item .a-ticks {
+      font-size: 18px;
+      color: var(--accent);
+    }
+
+    /* ---- Log ---- */
+    #log-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      height: 160px;
+      overflow-y: auto;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    #log-box .log-line {
+      padding: 1px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    #log-box .log-line:last-child {
+      color: var(--text);
+    }
+
+    /* ---- Divider inside sig/pos/risk col ---- */
+    .col-divider {
+      border-top: 1px solid var(--border);
+      margin: 8px 0;
+    }
+
+    /* ---- Target Calculator ---- */
+    .target-calc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .target-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .target-input-group label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+    }
+
+    .target-input-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .target-input-row input {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-family: var(--mono);
+      font-size: 13px;
+      width: 160px;
+      outline: none;
+    }
+
+    .target-input-row input:focus {
+      border-color: var(--accent);
+    }
+
+    .target-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }
+
+    .target-btn:hover {
+      opacity: 0.85;
+    }
+
+    .target-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .target-stat .t-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+    }
+
+    .target-stat .t-val {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .target-stat .t-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .target-suggestions {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .suggestion-pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      background: var(--bg);
+    }
+
+    .suggestion-pill.good {
+      border-color: var(--green);
+      color: var(--green);
+      background: #dcfce7;
+    }
+
+    .suggestion-pill.warn {
+      border-color: var(--yellow);
+      color: var(--yellow);
+      background: #fef3c7;
+    }
+
+    .suggestion-pill.bad {
+      border-color: var(--red);
+      color: var(--red);
+      background: #fee2e2;
+    }
+
+    .suggestion-pill.neutral {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: #dbeafe;
+    }
+
+    /* ---- Investment Forecast ---- */
+    .forecast-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .forecast-input-row input,
+    .forecast-input-row select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .forecast-input-row input {
+      width: 150px;
+    }
+
+    .forecast-input-row input:focus,
+    .forecast-input-row select:focus {
+      border-color: var(--accent);
+    }
+
+    .forecast-input-row select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 22px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 7px center;
+    }
+
+    .forecast-scenarios {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .scenario-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .scenario-card.pess {
+      border-color: #dc262644;
+    }
+
+    .scenario-card.base {
+      border-color: #2563eb44;
+    }
+
+    .scenario-card.opti {
+      border-color: #16a34a44;
+    }
+
+    .scenario-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .scenario-mult {
+      font-size: 10px;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+
+    .scenario-value {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .scenario-roi {
+      font-size: 12px;
+    }
+
+    .forecast-note {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 10px;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+
+    /* ---- Live Simulator ---- */
+    .sim-form-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .sim-form-row input {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-family: var(--mono);
+      font-size: 13px;
+      width: 160px;
+      outline: none;
+    }
+
+    .sim-form-row input:focus {
+      border-color: var(--accent);
+    }
+
+    .sim-btn {
+      background: var(--green);
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }
+
+    .sim-btn:hover {
+      opacity: 0.85;
+    }
+
+    .inv-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .inv-table th {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 4px 8px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .inv-table th:first-child {
+      text-align: left;
+    }
+
+    .inv-table td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: right;
+    }
+
+    .inv-table td:first-child {
+      text-align: left;
+      color: var(--text-dim);
+    }
+
+    .close-inv-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--red);
+      border-radius: 3px;
+      padding: 2px 7px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: var(--mono);
+    }
+
+    .close-inv-btn:hover {
+      border-color: var(--red);
+      background: #fee2e2;
+    }
+
+    #inv-empty {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 0;
+    }
+
+    /* ---- Tab navigation ---- */
+    nav.tab-bar {
+      display: flex;
+      gap: 0;
+      padding: 0 14px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Page sections — hidden by default, display:contents when active so
      panels flow into main's flex layout as if no wrapper exists */
-  .page-section { display: none; }
-  .page-section.visible { display: contents; }
+    .page-section {
+      display: none;
+    }
 
-  @media (max-width: 900px) {
-    .portfolio-grid { grid-template-columns: repeat(3, 1fr); }
-    .sub-grid { grid-template-columns: 1fr 1fr; }
-    .target-calc-grid { grid-template-columns: 1fr 1fr; }
-    .forecast-scenarios { grid-template-columns: 1fr 1fr; }
-  }
-  @media (max-width: 580px) {
-    .portfolio-grid { grid-template-columns: repeat(2, 1fr); }
-    .sub-grid { grid-template-columns: 1fr; }
-    .target-calc-grid { grid-template-columns: 1fr; }
-    .forecast-scenarios { grid-template-columns: 1fr; }
-  }
-</style>
+    .page-section.visible {
+      display: contents;
+    }
+
+    @media (max-width: 900px) {
+      .portfolio-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .sub-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .target-calc-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .forecast-scenarios {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 580px) {
+      .portfolio-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .sub-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .target-calc-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .forecast-scenarios {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<header>
-  <h1>⚡ KAIROS X</h1>
-  <div style="display:flex;align-items:center;gap:12px;">
-    <span id="clock" style="color:var(--text-dim);font-size:11px;"></span>
-    <span id="status-pill" class="disconnected">● DISCONNECTED</span>
-  </div>
-</header>
-
-<nav class="tab-bar">
-  <button class="tab-btn active" onclick="switchPage('overview')">Overview</button>
-  <button class="tab-btn" onclick="switchPage('market')">Market</button>
-  <button class="tab-btn" onclick="switchPage('3dbook')">3D Book</button>
-  <button class="tab-btn" onclick="switchPage('invest')">Invest</button>
-  <button class="tab-btn" onclick="switchPage('system')">System</button>
-</nav>
-
-<main>
-
-  <div class="page-section visible" data-page="overview">
-
-  <!-- Portfolio -->
-  <div class="panel" id="portfolio">
-    <h2>Portfolio</h2>
-    <div class="portfolio-grid">
-      <div class="kpi"><div class="label">Equity</div>        <div class="value neu" id="p-equity">—</div></div>
-      <div class="kpi"><div class="label">Cash</div>          <div class="value neu" id="p-cash">—</div></div>
-      <div class="kpi"><div class="label">Unrealized P&L</div><div class="value neu" id="p-upnl">—</div></div>
-      <div class="kpi"><div class="label">Realized P&L</div>  <div class="value neu" id="p-rpnl">—</div></div>
-      <div class="kpi"><div class="label">Drawdown</div>      <div class="value neu" id="p-dd">—</div></div>
-      <div class="kpi"><div class="label">Initial Capital</div><div class="value neu" id="p-cap">—</div></div>
+  <header>
+    <h1>⚡ KAIROS X</h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span id="clock" style="color:var(--text-dim);font-size:11px;"></span>
+      <span id="status-pill" class="disconnected">● DISCONNECTED</span>
     </div>
-    <div id="pf-chart-container"></div>
-  </div>
+  </header>
 
-  <!-- Target Calculator -->
-  <div class="panel" id="target-panel">
-    <h2>Target Calculator</h2>
-    <div class="target-calc-grid">
-      <div class="target-input-group">
-        <label>Target Equity ($)</label>
-        <div class="target-input-row">
-          <input type="number" id="target-input" placeholder="e.g. 110000" min="0" step="100"/>
-          <button class="target-btn" onclick="calcTarget()">SET</button>
-        </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;" id="target-set-display">— not set —</div>
-      </div>
-      <div class="target-stat">
-        <span class="t-label">ETA</span>
-        <span class="t-val" id="tc-eta" style="color:var(--accent);">—</span>
-        <span class="t-sub" id="tc-remaining">Set a target to begin projection</span>
-      </div>
-      <div class="target-stat">
-        <span class="t-label">Growth Rate</span>
-        <span class="t-val" id="tc-rate" style="color:var(--text);">—</span>
-        <span class="t-sub" id="tc-to-go">— remaining</span>
-      </div>
-      <div class="target-suggestions" id="tc-suggestions">
-        <span class="suggestion-pill neutral">Enter a target equity amount above</span>
-      </div>
-    </div>
-  </div>
+  <nav class="tab-bar">
+    <button class="tab-btn active" onclick="switchPage('overview')">Overview</button>
+    <button class="tab-btn" onclick="switchPage('market')">Market</button>
+    <button class="tab-btn" onclick="switchPage('3dbook')">3D Book</button>
+    <button class="tab-btn" onclick="switchPage('invest')">Invest</button>
+    <button class="tab-btn" onclick="switchPage('system')">System</button>
+  </nav>
 
-  </div><!-- /page overview -->
+  <main>
 
-  <div class="page-section" data-page="invest">
+    <div class="page-section visible" data-page="overview">
 
-  <!-- Investment Forecast -->
-  <div class="panel" id="forecast-panel">
-    <h2>Investment Forecast</h2>
-    <div class="forecast-input-row">
-      <span style="font-size:11px;color:var(--text-dim);">Amount ($)</span>
-      <input type="number" id="fc-amount" placeholder="e.g. 10000" min="0" step="100"/>
-      <span style="font-size:11px;color:var(--text-dim);">Horizon</span>
-      <select id="fc-months">
-        <option value="1">1 month</option>
-        <option value="3" selected>3 months</option>
-        <option value="6">6 months</option>
-        <option value="12">12 months</option>
-        <option value="24">24 months</option>
-      </select>
-      <button class="target-btn" onclick="calcForecast()">FORECAST</button>
-    </div>
-    <div class="forecast-scenarios">
-      <div class="scenario-card pess">
-        <div class="scenario-label">Pessimistic</div>
-        <div class="scenario-mult">0.3× current rate</div>
-        <div class="scenario-value neu" id="fc-pess-val">—</div>
-        <div class="scenario-roi" id="fc-pess-roi" style="color:var(--muted);">—</div>
-      </div>
-      <div class="scenario-card base">
-        <div class="scenario-label">Base Case</div>
-        <div class="scenario-mult">1.0× current rate</div>
-        <div class="scenario-value neu" id="fc-base-val">—</div>
-        <div class="scenario-roi" id="fc-base-roi" style="color:var(--muted);">—</div>
-      </div>
-      <div class="scenario-card opti">
-        <div class="scenario-label">Optimistic</div>
-        <div class="scenario-mult">2.5× current rate</div>
-        <div class="scenario-value neu" id="fc-opti-val">—</div>
-        <div class="scenario-roi" id="fc-opti-roi" style="color:var(--muted);">—</div>
-      </div>
-    </div>
-    <div class="forecast-note" id="fc-note">Enter an amount and horizon, then click FORECAST. Projections are based on the engine's live equity growth rate.</div>
-  </div>
-
-  <!-- Live Portfolio Simulator -->
-  <div class="panel" id="simulator-panel">
-    <h2>Live Portfolio Simulator</h2>
-    <div class="sim-form-row">
-      <span style="font-size:11px;color:var(--text-dim);">Invest ($)</span>
-      <input type="number" id="sim-amount" placeholder="e.g. 10000" min="1" step="100"/>
-      <button class="sim-btn" onclick="investNow()">INVEST NOW</button>
-      <span style="font-size:11px;color:var(--text-dim);margin-left:8px;">
-        Your simulated investment tracks the engine's equity performance proportionally in real time.
-      </span>
-    </div>
-    <div id="inv-table-wrap">
-      <div id="inv-empty">— no active investments — enter an amount above to simulate —</div>
-    </div>
-  </div>
-
-  </div><!-- /page invest -->
-
-  <div class="page-section" data-page="market">
-
-  <!-- Ticker view -->
-  <div class="panel" id="ticker-view">
-
-    <!-- Selector bar -->
-    <div class="selector-bar">
-      <div class="selector-group">
-        <span>Ticker</span>
-        <select id="ticker-select" disabled>
-          <option value="">— awaiting data —</option>
-        </select>
-      </div>
-      <div class="selector-group">
-        <span>Bar</span>
-        <select id="bar-select">
-          <option value="5">5 s</option>
-          <option value="10" selected>10 s</option>
-          <option value="30">30 s</option>
-          <option value="60">1 min</option>
-          <option value="300">5 min</option>
-        </select>
-      </div>
-      <div id="ticker-mid-display">—</div>
-    </div>
-
-    <!-- Candlestick chart -->
-    <div id="main-chart-container"></div>
-
-    <!-- Sub-panels -->
-    <div class="sub-grid">
-
-      <div class="sub-col">
-        <div class="sub-label">Order Book</div>
-        <div id="book-content"><div style="color:var(--muted);font-size:12px;padding:8px 0;">— awaiting data —</div></div>
-      </div>
-
-      <div class="sub-col">
-        <div class="sub-label">Indicators</div>
-        <div id="inds-content"><div style="color:var(--muted);font-size:12px;padding:8px 0;">— awaiting data —</div></div>
-      </div>
-
-      <div class="sub-col">
-        <div class="sub-label">Signal</div>
-        <div id="signal-content"><div class="signal-box"><div class="sig-badge sig-HOLD">HOLD</div></div></div>
-        <div class="col-divider"></div>
-        <div class="sub-label">Position</div>
-        <div id="pos-content"><div class="pos-none">— flat —</div></div>
-        <div class="col-divider"></div>
-        <div class="sub-label">Risk</div>
-        <div id="risk-content"><div class="risk-ok">— awaiting data —</div></div>
-      </div>
-
-    </div>
-  </div>
-
-  </div><!-- /page market -->
-
-  <div class="page-section" data-page="3dbook">
-    <div class="panel" id="threed-view" style="padding: 0; overflow: hidden; height: 600px; position: relative; background: #0a0a1a; border-radius: 12px;">
-      <div id="three-container" style="width: 100%; height: 100%; cursor: grab;"></div>
-      <!-- HUD overlay -->
-      <div id="book3d-hud" style="position:absolute; top:0; left:0; right:0; padding:14px 18px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; z-index:10;">
-        <div style="background:rgba(10,10,26,0.85); backdrop-filter:blur(10px); border:1px solid rgba(100,200,255,0.15); padding:10px 16px; border-radius:10px;">
-          <div style="font-size:13px; font-weight:700; color:#7dd3fc; letter-spacing:1px; margin-bottom:4px;">3D ORDER BOOK</div>
-          <div style="font-size:11px; color:rgba(255,255,255,0.6); line-height:1.5;">
-            <span style="color:#4ade80;">■</span> Bids &nbsp;&nbsp;
-            <span style="color:#f87171;">■</span> Asks<br>
-            Drag to rotate · Scroll to zoom · Right-drag to pan
+      <!-- Portfolio -->
+      <div class="panel" id="portfolio">
+        <h2>Portfolio</h2>
+        <div class="portfolio-grid">
+          <div class="kpi">
+            <div class="label">Equity</div>
+            <div class="value neu" id="p-equity">—</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Cash</div>
+            <div class="value neu" id="p-cash">—</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Unrealized P&L</div>
+            <div class="value neu" id="p-upnl">—</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Realized P&L</div>
+            <div class="value neu" id="p-rpnl">—</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Drawdown</div>
+            <div class="value neu" id="p-dd">—</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Initial Capital</div>
+            <div class="value neu" id="p-cap">—</div>
           </div>
         </div>
-        <div id="book3d-stats" style="background:rgba(10,10,26,0.85); backdrop-filter:blur(10px); border:1px solid rgba(100,200,255,0.15); padding:10px 16px; border-radius:10px; text-align:right;">
-          <div style="font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px;">Live Stats</div>
-          <div id="book3d-mid" style="font-size:16px; font-weight:700; color:#e0f2fe; margin:2px 0;">—</div>
-          <div id="book3d-spread" style="font-size:11px; color:rgba(255,255,255,0.5);">spread —</div>
-          <div id="book3d-depth" style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:2px;">depth —</div>
+        <div id="pf-chart-container"></div>
+      </div>
+
+      <!-- Target Calculator -->
+      <div class="panel" id="target-panel">
+        <h2>Target Calculator</h2>
+        <div class="target-calc-grid">
+          <div class="target-input-group">
+            <label>Target Equity ($)</label>
+            <div class="target-input-row">
+              <input type="number" id="target-input" placeholder="e.g. 110000" min="0" step="100" />
+              <button class="target-btn" onclick="calcTarget()">SET</button>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;" id="target-set-display">— not set —</div>
+          </div>
+          <div class="target-stat">
+            <span class="t-label">ETA</span>
+            <span class="t-val" id="tc-eta" style="color:var(--accent);">—</span>
+            <span class="t-sub" id="tc-remaining">Set a target to begin projection</span>
+          </div>
+          <div class="target-stat">
+            <span class="t-label">Growth Rate</span>
+            <span class="t-val" id="tc-rate" style="color:var(--text);">—</span>
+            <span class="t-sub" id="tc-to-go">— remaining</span>
+          </div>
+          <div class="target-suggestions" id="tc-suggestions">
+            <span class="suggestion-pill neutral">Enter a target equity amount above</span>
+          </div>
         </div>
       </div>
-    </div>
-  </div><!-- /page 3dbook -->
 
-  <div class="page-section" data-page="system">
+    </div><!-- /page overview -->
 
-  <!-- Agent status -->
-  <div class="panel" id="agents">
-    <h2>Agent Status</h2>
-    <div class="agent-grid" id="agent-grid"></div>
-  </div>
+    <div class="page-section" data-page="invest">
 
-  <!-- Engine log -->
-  <div class="panel" id="log-panel">
-    <h2>Engine Log</h2>
-    <div id="log-box"></div>
-  </div>
+      <!-- Investment Forecast -->
+      <div class="panel" id="forecast-panel">
+        <h2>Investment Forecast</h2>
+        <div class="forecast-input-row">
+          <span style="font-size:11px;color:var(--text-dim);">Amount ($)</span>
+          <input type="number" id="fc-amount" placeholder="e.g. 10000" min="0" step="100" />
+          <span style="font-size:11px;color:var(--text-dim);">Horizon</span>
+          <select id="fc-months">
+            <option value="1">1 month</option>
+            <option value="3" selected>3 months</option>
+            <option value="6">6 months</option>
+            <option value="12">12 months</option>
+            <option value="24">24 months</option>
+          </select>
+          <button class="target-btn" onclick="calcForecast()">FORECAST</button>
+        </div>
+        <div class="forecast-scenarios">
+          <div class="scenario-card pess">
+            <div class="scenario-label">Pessimistic</div>
+            <div class="scenario-mult">0.3× current rate</div>
+            <div class="scenario-value neu" id="fc-pess-val">—</div>
+            <div class="scenario-roi" id="fc-pess-roi" style="color:var(--muted);">—</div>
+          </div>
+          <div class="scenario-card base">
+            <div class="scenario-label">Base Case</div>
+            <div class="scenario-mult">1.0× current rate</div>
+            <div class="scenario-value neu" id="fc-base-val">—</div>
+            <div class="scenario-roi" id="fc-base-roi" style="color:var(--muted);">—</div>
+          </div>
+          <div class="scenario-card opti">
+            <div class="scenario-label">Optimistic</div>
+            <div class="scenario-mult">2.5× current rate</div>
+            <div class="scenario-value neu" id="fc-opti-val">—</div>
+            <div class="scenario-roi" id="fc-opti-roi" style="color:var(--muted);">—</div>
+          </div>
+        </div>
+        <div class="forecast-note" id="fc-note">Enter an amount and horizon, then click FORECAST. Projections are based
+          on the engine's live equity growth rate.</div>
+      </div>
 
-  </div><!-- /page system -->
+      <!-- Live Portfolio Simulator -->
+      <div class="panel" id="simulator-panel">
+        <h2>Live Portfolio Simulator</h2>
+        <div class="sim-form-row">
+          <span style="font-size:11px;color:var(--text-dim);">Invest ($)</span>
+          <input type="number" id="sim-amount" placeholder="e.g. 10000" min="1" step="100" />
+          <button class="sim-btn" onclick="investNow()">INVEST NOW</button>
+          <span style="font-size:11px;color:var(--text-dim);margin-left:8px;">
+            Your simulated investment tracks the engine's equity performance proportionally in real time.
+          </span>
+        </div>
+        <div id="inv-table-wrap">
+          <div id="inv-empty">— no active investments — enter an amount above to simulate —</div>
+        </div>
+      </div>
 
-</main>
+    </div><!-- /page invest -->
 
-<script>
-// ============================================================
-// State
-// ============================================================
-const MAX_BARS     = 500;
-const MAX_LINE_PTS = 500;
+    <div class="page-section" data-page="market">
 
-let barIntervalSec = 10;
-let selectedTicker = null;
-let tickersReady   = false;
+      <!-- Ticker view -->
+      <div class="panel" id="ticker-view">
 
-// Per-ticker data store
-// { ohlc: { current, history[] }, vwap: [], ema: [], markers: [], lastSigDir,
-//   latestSnap, latestSig, latestPos, latestRisk }
-const TD = {};
+        <!-- Selector bar -->
+        <div class="selector-bar">
+          <div class="selector-group">
+            <span>Ticker</span>
+            <select id="ticker-select" disabled>
+              <option value="">— awaiting data —</option>
+            </select>
+          </div>
+          <div class="selector-group">
+            <span>Bar</span>
+            <select id="bar-select">
+              <option value="5">5 s</option>
+              <option value="10" selected>10 s</option>
+              <option value="30">30 s</option>
+              <option value="60">1 min</option>
+              <option value="300">5 min</option>
+            </select>
+          </div>
+          <div id="ticker-mid-display">—</div>
+        </div>
 
-function ensureTD(t) {
-  if (!TD[t]) TD[t] = {
-    ohlc: { current: null, history: [] },
-    vwap: [], ema: [], markers: [],
-    lastSigDir: null,
-    latestSnap: null, latestSig: null, latestPos: null, latestRisk: null,
-  };
-}
+        <!-- Candlestick chart -->
+        <div id="main-chart-container"></div>
 
-// ============================================================
-// Lightweight Charts instances
-// ============================================================
-let mainChart = null, candleSeries = null, vwapLine = null, emaLine = null;
-let pfChart = null, pfEquitySeries = null;
-let pfLastTime = 0;
+        <!-- Sub-panels -->
+        <div class="sub-grid">
 
-const C = {
-  bg:     '#f0f2f5',
-  panel:  '#ffffff',
-  border: '#e2e8f0',
-  text:   '#475569',
-  green:  '#16a34a',
-  red:    '#dc2626',
-  accent: '#2563eb',
-  yellow: '#d97706',
-};
+          <div class="sub-col">
+            <div class="sub-label">Order Book</div>
+            <div id="book-content">
+              <div style="color:var(--muted);font-size:12px;padding:8px 0;">— awaiting data —</div>
+            </div>
+          </div>
 
-function initMainChart() {
-  const el = document.getElementById('main-chart-container');
-  if (!el) return;
+          <div class="sub-col">
+            <div class="sub-label">Indicators</div>
+            <div id="inds-content">
+              <div style="color:var(--muted);font-size:12px;padding:8px 0;">— awaiting data —</div>
+            </div>
+          </div>
 
-  mainChart = LightweightCharts.createChart(el, {
-    width:  el.clientWidth,
-    height: 330,
-    layout: { background: { color: C.bg }, textColor: C.text },
-    grid:   { vertLines: { color: C.border }, horzLines: { color: C.border } },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: C.border },
-    timeScale: { borderColor: C.border, timeVisible: true, secondsVisible: true },
-  });
+          <div class="sub-col">
+            <div class="sub-label">Signal</div>
+            <div id="signal-content">
+              <div class="signal-box">
+                <div class="sig-badge sig-HOLD">HOLD</div>
+              </div>
+            </div>
+            <div class="col-divider"></div>
+            <div class="sub-label">Position</div>
+            <div id="pos-content">
+              <div class="pos-none">— flat —</div>
+            </div>
+            <div class="col-divider"></div>
+            <div class="sub-label">Risk</div>
+            <div id="risk-content">
+              <div class="risk-ok">— awaiting data —</div>
+            </div>
+          </div>
 
-  candleSeries = mainChart.addCandlestickSeries({
-    upColor:        C.green, downColor:        C.red,
-    borderUpColor:  C.green, borderDownColor:  C.red,
-    wickUpColor:    C.green, wickDownColor:    C.red,
-  });
+        </div>
+      </div>
 
-  vwapLine = mainChart.addLineSeries({
-    color: C.yellow, lineWidth: 1, title: 'VWAP',
-    priceLineVisible: false, lastValueVisible: true,
-  });
+    </div><!-- /page market -->
 
-  emaLine = mainChart.addLineSeries({
-    color: C.green, lineWidth: 1,
-    lineStyle: LightweightCharts.LineStyle.Dashed,
-    title: 'EMA', priceLineVisible: false, lastValueVisible: true,
-  });
+    <div class="page-section" data-page="3dbook">
+      <div class="panel" id="threed-view"
+        style="padding: 0; overflow: hidden; height: 600px; position: relative; background: #0a0a1a; border-radius: 12px;">
+        <div id="three-container" style="width: 100%; height: 100%; cursor: grab;"></div>
+        <!-- HUD overlay -->
+        <div id="book3d-hud"
+          style="position:absolute; top:0; left:0; right:0; padding:14px 18px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; z-index:10;">
+          <div
+            style="background:rgba(10,10,26,0.85); backdrop-filter:blur(10px); border:1px solid rgba(100,200,255,0.15); padding:10px 16px; border-radius:10px;">
+            <div style="font-size:13px; font-weight:700; color:#7dd3fc; letter-spacing:1px; margin-bottom:4px;">3D ORDER
+              BOOK</div>
+            <div style="font-size:11px; color:rgba(255,255,255,0.6); line-height:1.5;">
+              <span style="color:#4ade80;">■</span> Bids &nbsp;&nbsp;
+              <span style="color:#f87171;">■</span> Asks<br>
+              Drag to rotate · Scroll to zoom · Right-drag to pan
+            </div>
+          </div>
+          <div id="book3d-stats"
+            style="background:rgba(10,10,26,0.85); backdrop-filter:blur(10px); border:1px solid rgba(100,200,255,0.15); padding:10px 16px; border-radius:10px; text-align:right;">
+            <div style="font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px;">Live
+              Stats</div>
+            <div id="book3d-mid" style="font-size:16px; font-weight:700; color:#e0f2fe; margin:2px 0;">—</div>
+            <div id="book3d-spread" style="font-size:11px; color:rgba(255,255,255,0.5);">spread —</div>
+            <div id="book3d-depth" style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:2px;">depth —</div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /page 3dbook -->
 
-  new ResizeObserver(() => {
-    if (mainChart && el.clientWidth > 0)
-      mainChart.applyOptions({ width: el.clientWidth });
-  }).observe(el);
-}
+    <div class="page-section" data-page="system">
 
-function initPfChart() {
-  const el = document.getElementById('pf-chart-container');
-  if (!el) return;
+      <!-- Agent status -->
+      <div class="panel" id="agents">
+        <h2>Agent Status</h2>
+        <div class="agent-grid" id="agent-grid"></div>
+      </div>
 
-  pfChart = LightweightCharts.createChart(el, {
-    width:  el.clientWidth,
-    height: 80,
-    layout: { background: { color: C.panel }, textColor: C.text },
-    grid:   { vertLines: { color: 'transparent' }, horzLines: { color: C.border } },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: C.border },
-    timeScale: { borderColor: C.border, timeVisible: true, secondsVisible: false },
-    handleScroll: false, handleScale: false,
-  });
+      <!-- Engine log -->
+      <div class="panel" id="log-panel">
+        <h2>Engine Log</h2>
+        <div id="log-box"></div>
+      </div>
 
-  pfEquitySeries = pfChart.addAreaSeries({
-    lineColor:   C.accent,
-    topColor:    'rgba(79,142,247,0.18)',
-    bottomColor: 'rgba(79,142,247,0.02)',
-    lineWidth: 1.5,
-    title: 'Equity',
-    priceLineVisible: false,
-    lastValueVisible: true,
-  });
+    </div><!-- /page system -->
 
-  new ResizeObserver(() => {
-    if (pfChart && el.clientWidth > 0)
-      pfChart.applyOptions({ width: el.clientWidth });
-  }).observe(el);
-}
+  </main>
 
-// ============================================================
-// OHLC bar aggregation
-// ============================================================
-function currentBarTime() {
-  const nowSec = Math.floor(Date.now() / 1000);
-  return Math.floor(nowSec / barIntervalSec) * barIntervalSec;
-}
+  <script>
+    // ============================================================
+    // State
+    // ============================================================
+    const MAX_BARS = 500;
+    const MAX_LINE_PTS = 500;
 
-function pushOrUpdateLine(arr, t, value) {
-  if (arr.length > 0 && arr[arr.length - 1].time === t) {
-    arr[arr.length - 1].value = value;
-  } else {
-    arr.push({ time: t, value });
-    if (arr.length > MAX_LINE_PTS) arr.shift();
-  }
-}
+    let barIntervalSec = 10;
+    let selectedTicker = null;
+    let tickersReady = false;
 
-function processTick(ticker, snap) {
-  if (!snap || snap.mid_price == null) return;
-  const d     = TD[ticker];
-  const bTime = currentBarTime();
-  const mid   = snap.mid_price;
+    // Per-ticker data store
+    // { ohlc: { current, history[] }, vwap: [], ema: [], markers: [], lastSigDir,
+    //   latestSnap, latestSig, latestPos, latestRisk }
+    const TD = {};
 
-  // OHLC
-  if (!d.ohlc.current || d.ohlc.current.time !== bTime) {
-    if (d.ohlc.current) {
-      d.ohlc.history.push({ ...d.ohlc.current });
-      if (d.ohlc.history.length > MAX_BARS) d.ohlc.history.shift();
+    function ensureTD(t) {
+      if (!TD[t]) TD[t] = {
+        ohlc: { current: null, history: [] },
+        vwap: [], ema: [], markers: [],
+        lastSigDir: null,
+        latestSnap: null, latestSig: null, latestPos: null, latestRisk: null,
+      };
     }
-    d.ohlc.current = { time: bTime, open: mid, high: mid, low: mid, close: mid };
-  } else {
-    const c = d.ohlc.current;
-    if (mid > c.high) c.high = mid;
-    if (mid < c.low)  c.low  = mid;
-    c.close = mid;
-  }
 
-  // Line overlays
-  if (snap.vwap      != null) pushOrUpdateLine(d.vwap, bTime, snap.vwap);
-  if (snap.ema_price != null) pushOrUpdateLine(d.ema,  bTime, snap.ema_price);
+    // ============================================================
+    // Lightweight Charts instances
+    // ============================================================
+    let mainChart = null, candleSeries = null, vwapLine = null, emaLine = null;
+    let pfChart = null, pfEquitySeries = null;
+    let pfLastTime = 0;
 
-  // Push live to chart if this is the selected ticker
-  if (ticker === selectedTicker && candleSeries) {
-    candleSeries.update(d.ohlc.current);
-    if (snap.vwap      != null) vwapLine.update({ time: bTime, value: snap.vwap });
-    if (snap.ema_price != null) emaLine.update({ time: bTime, value: snap.ema_price });
-  }
-}
+    const C = {
+      bg: '#f0f2f5',
+      panel: '#ffffff',
+      border: '#e2e8f0',
+      text: '#475569',
+      green: '#16a34a',
+      red: '#dc2626',
+      accent: '#2563eb',
+      yellow: '#d97706',
+    };
 
-// ============================================================
-// Signal markers on chart
-// ============================================================
-function processSignal(ticker, sig) {
-  if (!sig || sig.direction === 'HOLD') return;
-  const d = TD[ticker];
-  if (sig.direction === d.lastSigDir) return; // no change, skip
-  d.lastSigDir = sig.direction;
+    function initMainChart() {
+      const el = document.getElementById('main-chart-container');
+      if (!el) return;
 
-  const bTime = currentBarTime();
-  d.markers.push({
-    time:     bTime,
-    position: sig.direction === 'BUY' ? 'belowBar' : 'aboveBar',
-    color:    sig.direction === 'BUY' ? C.green : C.red,
-    shape:    sig.direction === 'BUY' ? 'arrowUp' : 'arrowDown',
-    text:     sig.direction,
-    size:     1,
-  });
-  d.markers.sort((a, b) => a.time - b.time);
+      mainChart = LightweightCharts.createChart(el, {
+        width: el.clientWidth,
+        height: 330,
+        layout: { background: { color: C.bg }, textColor: C.text },
+        grid: { vertLines: { color: C.border }, horzLines: { color: C.border } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        rightPriceScale: { borderColor: C.border },
+        timeScale: { borderColor: C.border, timeVisible: true, secondsVisible: true },
+      });
 
-  if (ticker === selectedTicker && candleSeries)
-    candleSeries.setMarkers(d.markers);
-}
+      candleSeries = mainChart.addCandlestickSeries({
+        upColor: C.green, downColor: C.red,
+        borderUpColor: C.green, borderDownColor: C.red,
+        wickUpColor: C.green, wickDownColor: C.red,
+      });
 
-// ============================================================
-// Ticker switching
-// ============================================================
-function switchTicker(t) {
-  if (!t || !TD[t] || !candleSeries) return;
-  selectedTicker = t;
-  const d = TD[t];
+      vwapLine = mainChart.addLineSeries({
+        color: C.yellow, lineWidth: 1, title: 'VWAP',
+        priceLineVisible: false, lastValueVisible: true,
+      });
 
-  // Repopulate chart series
-  const allBars = [...d.ohlc.history];
-  if (d.ohlc.current) allBars.push(d.ohlc.current);
-  candleSeries.setData(allBars);
-  vwapLine.setData([...d.vwap]);
-  emaLine.setData([...d.ema]);
-  candleSeries.setMarkers(d.markers);
-  mainChart.timeScale().fitContent();
+      emaLine = mainChart.addLineSeries({
+        color: C.green, lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        title: 'EMA', priceLineVisible: false, lastValueVisible: true,
+      });
 
-  // Refresh text panels
-  if (d.latestSnap) { renderIndicators(d.latestSnap); }
-  renderSignal(d.latestSig);
-  renderPosition(d.latestPos);
-  renderRisk(d.latestRisk);
-}
+      new ResizeObserver(() => {
+        if (mainChart && el.clientWidth > 0)
+          mainChart.applyOptions({ width: el.clientWidth });
+      }).observe(el);
+    }
 
-function resetChartData() {
-  Object.keys(TD).forEach(t => {
-    TD[t].ohlc = { current: null, history: [] };
-    TD[t].vwap = []; TD[t].ema = [];
-    TD[t].lastSigDir = null; TD[t].markers = [];
-  });
-  if (candleSeries) { candleSeries.setData([]); candleSeries.setMarkers([]); }
-  if (vwapLine)     vwapLine.setData([]);
-  if (emaLine)      emaLine.setData([]);
-}
+    function initPfChart() {
+      const el = document.getElementById('pf-chart-container');
+      if (!el) return;
 
-// ============================================================
-// Portfolio chart
-// ============================================================
-function updatePfChart(pf) {
-  if (!pfEquitySeries || !pf || pf.equity == null) return;
-  const t = Math.floor(Date.now() / 1000);
-  if (t <= pfLastTime) return;
-  pfLastTime = t;
-  try { pfEquitySeries.update({ time: t, value: pf.equity }); } catch(_) {}
-}
+      pfChart = LightweightCharts.createChart(el, {
+        width: el.clientWidth,
+        height: 80,
+        layout: { background: { color: C.panel }, textColor: C.text },
+        grid: { vertLines: { color: 'transparent' }, horzLines: { color: C.border } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        rightPriceScale: { borderColor: C.border },
+        timeScale: { borderColor: C.border, timeVisible: true, secondsVisible: false },
+        handleScroll: false, handleScale: false,
+      });
 
-// ============================================================
-// Helpers
-// ============================================================
-const $ = id => document.getElementById(id);
-const fmt  = (n, d=2) => n == null ? '—' : Number(n).toFixed(d);
-const fmtK = n => n == null ? '—' : '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-const pctCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
-const pctStr = v => v == null ? '—' : (v > 0 ? '+' : '') + fmt(v, 2) + '%';
+      pfEquitySeries = pfChart.addAreaSeries({
+        lineColor: C.accent,
+        topColor: 'rgba(79,142,247,0.18)',
+        bottomColor: 'rgba(79,142,247,0.02)',
+        lineWidth: 1.5,
+        title: 'Equity',
+        priceLineVisible: false,
+        lastValueVisible: true,
+      });
 
-// ============================================================
-// Render helpers — all target fixed IDs (single-ticker view)
-// ============================================================
-function renderBook(snap) {
-  const el = $('book-content');
-  if (!el || !snap) return;
+      new ResizeObserver(() => {
+        if (pfChart && el.clientWidth > 0)
+          pfChart.applyOptions({ width: el.clientWidth });
+      }).observe(el);
+    }
 
-  const midEl = $('ticker-mid-display');
-  if (midEl) midEl.textContent = `$${fmt(snap.mid_price, 4)}  sprd $${fmt(snap.spread, 4)}`;
+    // ============================================================
+    // OHLC bar aggregation
+    // ============================================================
+    function currentBarTime() {
+      const nowSec = Math.floor(Date.now() / 1000);
+      return Math.floor(nowSec / barIntervalSec) * barIntervalSec;
+    }
 
-  const bids = (snap.bids || []).slice(0, 5);
-  const asks = (snap.asks || []).slice(0, 5);
-  el.innerHTML = `
+    function pushOrUpdateLine(arr, t, value) {
+      if (arr.length > 0 && arr[arr.length - 1].time === t) {
+        arr[arr.length - 1].value = value;
+      } else {
+        arr.push({ time: t, value });
+        if (arr.length > MAX_LINE_PTS) arr.shift();
+      }
+    }
+
+    function processTick(ticker, snap) {
+      if (!snap || snap.mid_price == null) return;
+      const d = TD[ticker];
+      const bTime = currentBarTime();
+      const mid = snap.mid_price;
+
+      // OHLC
+      if (!d.ohlc.current || d.ohlc.current.time !== bTime) {
+        if (d.ohlc.current) {
+          d.ohlc.history.push({ ...d.ohlc.current });
+          if (d.ohlc.history.length > MAX_BARS) d.ohlc.history.shift();
+        }
+        d.ohlc.current = { time: bTime, open: mid, high: mid, low: mid, close: mid };
+      } else {
+        const c = d.ohlc.current;
+        if (mid > c.high) c.high = mid;
+        if (mid < c.low) c.low = mid;
+        c.close = mid;
+      }
+
+      // Line overlays
+      if (snap.vwap != null) pushOrUpdateLine(d.vwap, bTime, snap.vwap);
+      if (snap.ema_price != null) pushOrUpdateLine(d.ema, bTime, snap.ema_price);
+
+      // Push live to chart if this is the selected ticker
+      if (ticker === selectedTicker && candleSeries) {
+        candleSeries.update(d.ohlc.current);
+        if (snap.vwap != null) vwapLine.update({ time: bTime, value: snap.vwap });
+        if (snap.ema_price != null) emaLine.update({ time: bTime, value: snap.ema_price });
+      }
+    }
+
+    // ============================================================
+    // Signal markers on chart
+    // ============================================================
+    function processSignal(ticker, sig) {
+      if (!sig || sig.direction === 'HOLD') return;
+      const d = TD[ticker];
+      if (sig.direction === d.lastSigDir) return; // no change, skip
+      d.lastSigDir = sig.direction;
+
+      const bTime = currentBarTime();
+      d.markers.push({
+        time: bTime,
+        position: sig.direction === 'BUY' ? 'belowBar' : 'aboveBar',
+        color: sig.direction === 'BUY' ? C.green : C.red,
+        shape: sig.direction === 'BUY' ? 'arrowUp' : 'arrowDown',
+        text: sig.direction,
+        size: 1,
+      });
+      d.markers.sort((a, b) => a.time - b.time);
+
+      if (ticker === selectedTicker && candleSeries)
+        candleSeries.setMarkers(d.markers);
+    }
+
+    // ============================================================
+    // Ticker switching
+    // ============================================================
+    function switchTicker(t) {
+      if (!t || !TD[t] || !candleSeries) return;
+      selectedTicker = t;
+      const d = TD[t];
+
+      // Repopulate chart series
+      const allBars = [...d.ohlc.history];
+      if (d.ohlc.current) allBars.push(d.ohlc.current);
+      candleSeries.setData(allBars);
+      vwapLine.setData([...d.vwap]);
+      emaLine.setData([...d.ema]);
+      candleSeries.setMarkers(d.markers);
+      mainChart.timeScale().fitContent();
+
+      // Refresh text panels
+      if (d.latestSnap) { renderIndicators(d.latestSnap); }
+      renderSignal(d.latestSig);
+      renderPosition(d.latestPos);
+      renderRisk(d.latestRisk);
+    }
+
+    function resetChartData() {
+      Object.keys(TD).forEach(t => {
+        TD[t].ohlc = { current: null, history: [] };
+        TD[t].vwap = []; TD[t].ema = [];
+        TD[t].lastSigDir = null; TD[t].markers = [];
+      });
+      if (candleSeries) { candleSeries.setData([]); candleSeries.setMarkers([]); }
+      if (vwapLine) vwapLine.setData([]);
+      if (emaLine) emaLine.setData([]);
+    }
+
+    // ============================================================
+    // Portfolio chart
+    // ============================================================
+    function updatePfChart(pf) {
+      if (!pfEquitySeries || !pf || pf.equity == null) return;
+      const t = Math.floor(Date.now() / 1000);
+      if (t <= pfLastTime) return;
+      pfLastTime = t;
+      try { pfEquitySeries.update({ time: t, value: pf.equity }); } catch (_) { }
+    }
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+    const $ = id => document.getElementById(id);
+    const fmt = (n, d = 2) => n == null ? '—' : Number(n).toFixed(d);
+    const fmtK = n => n == null ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pctCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
+    const pctStr = v => v == null ? '—' : (v > 0 ? '+' : '') + fmt(v, 2) + '%';
+
+    // ============================================================
+    // Render helpers — all target fixed IDs (single-ticker view)
+    // ============================================================
+    function renderBook(snap) {
+      const el = $('book-content');
+      if (!el || !snap) return;
+
+      const midEl = $('ticker-mid-display');
+      if (midEl) midEl.textContent = `$${fmt(snap.mid_price, 4)}  sprd $${fmt(snap.spread, 4)}`;
+
+      const bids = (snap.bids || []).slice(0, 5);
+      const asks = (snap.asks || []).slice(0, 5);
+      el.innerHTML = `
     <div class="book-grid">
       <div>
         <div class="col-hdr"><span>BID</span><span>SHARES</span></div>
-        ${bids.map(([p,s]) => `<div class="book-row bid"><span class="price">$${fmt(p,4)}</span><span class="shares">${s.toLocaleString()}</span></div>`).join('')}
+        ${bids.map(([p, s]) => `<div class="book-row bid"><span class="price">$${fmt(p, 4)}</span><span class="shares">${s.toLocaleString()}</span></div>`).join('')}
       </div>
       <div>
         <div class="col-hdr"><span>ASK</span><span>SHARES</span></div>
-        ${asks.map(([p,s]) => `<div class="book-row ask"><span class="price">$${fmt(p,4)}</span><span class="shares">${s.toLocaleString()}</span></div>`).join('')}
+        ${asks.map(([p, s]) => `<div class="book-row ask"><span class="price">$${fmt(p, 4)}</span><span class="shares">${s.toLocaleString()}</span></div>`).join('')}
       </div>
     </div>`;
-}
+    }
 
-function renderIndicators(snap) {
-  const el = $('inds-content');
-  if (!el || !snap) return;
+    function renderIndicators(snap) {
+      const el = $('inds-content');
+      if (!el || !snap) return;
 
-  const imbal  = snap.order_imbalance ?? 0;
-  const clamped = Math.max(-1, Math.min(1, imbal));
-  const fillPct  = Math.abs(clamped) * 50;
-  const fillLeft = clamped >= 0 ? 50 : (50 - fillPct);
-  const fillColor = clamped > 0.1 ? C.green : clamped < -0.1 ? C.red : '#64748b';
+      const imbal = snap.order_imbalance ?? 0;
+      const clamped = Math.max(-1, Math.min(1, imbal));
+      const fillPct = Math.abs(clamped) * 50;
+      const fillLeft = clamped >= 0 ? 50 : (50 - fillPct);
+      const fillColor = clamped > 0.1 ? C.green : clamped < -0.1 ? C.red : '#64748b';
 
-  const rows = [
-    ['VWAP',   `$${fmt(snap.vwap, 4)}`],
-    ['EMA',    `$${fmt(snap.ema_price, 4)}`],
-    ['Mom',    fmt(snap.momentum, 4)],
-    ['Sprd%',  `${fmt(snap.spread_pct, 3)}%`],
-    ['BidVol', (snap.bid_volume  || 0).toLocaleString()],
-    ['AskVol', (snap.ask_volume  || 0).toLocaleString()],
-  ];
+      const rows = [
+        ['VWAP', `$${fmt(snap.vwap, 4)}`],
+        ['EMA', `$${fmt(snap.ema_price, 4)}`],
+        ['Mom', fmt(snap.momentum, 4)],
+        ['Sprd%', `${fmt(snap.spread_pct, 3)}%`],
+        ['BidVol', (snap.bid_volume || 0).toLocaleString()],
+        ['AskVol', (snap.ask_volume || 0).toLocaleString()],
+      ];
 
-  el.innerHTML = `
+      el.innerHTML = `
     <div class="ind-row">
       <span class="ind-label">Imbal</span>
       <span class="ind-val">${fmt(imbal, 3)}</span>
@@ -936,17 +1405,17 @@ function renderIndicators(snap) {
       <div class="imbal-fill" style="left:${fillLeft}%;width:${fillPct}%;background:${fillColor};"></div>
       <div class="imbal-center"></div>
     </div>
-    ${rows.map(([l,v]) => `<div class="ind-row"><span class="ind-label">${l}</span><span class="ind-val">${v}</span></div>`).join('')}`;
-}
+    ${rows.map(([l, v]) => `<div class="ind-row"><span class="ind-label">${l}</span><span class="ind-val">${v}</span></div>`).join('')}`;
+    }
 
-function renderSignal(sig) {
-  const el = $('signal-content');
-  if (!el) return;
-  const dir  = sig?.direction || 'HOLD';
-  const conf = sig?.confidence ?? 0;
-  const pct  = Math.round(Math.max(0, Math.min(1, conf)) * 100);
-  const confColor = conf >= 0.7 ? C.green : conf >= 0.4 ? C.yellow : C.red;
-  el.innerHTML = `
+    function renderSignal(sig) {
+      const el = $('signal-content');
+      if (!el) return;
+      const dir = sig?.direction || 'HOLD';
+      const conf = sig?.confidence ?? 0;
+      const pct = Math.round(Math.max(0, Math.min(1, conf)) * 100);
+      const confColor = conf >= 0.7 ? C.green : conf >= 0.4 ? C.yellow : C.red;
+      el.innerHTML = `
     <div class="signal-box">
       <div class="sig-badge sig-${dir}">${dir}</div>
       <div class="sig-conf">conf: ${fmt(conf, 2)}&nbsp;&nbsp;score: ${fmt(sig?.score, 3)}</div>
@@ -955,14 +1424,14 @@ function renderSignal(sig) {
       </div>
       <div class="sig-reason">${sig?.reason || ''}</div>
     </div>`;
-}
+    }
 
-function renderPosition(pos) {
-  const el = $('pos-content');
-  if (!el) return;
-  if (!pos) { el.innerHTML = `<div class="pos-none">— flat —</div>`; return; }
-  const cls = pctCls(pos.unrealized_pnl);
-  el.innerHTML = `
+    function renderPosition(pos) {
+      const el = $('pos-content');
+      if (!el) return;
+      if (!pos) { el.innerHTML = `<div class="pos-none">— flat —</div>`; return; }
+      const cls = pctCls(pos.unrealized_pnl);
+      el.innerHTML = `
     <div class="pos-detail">
       <div class="pos-item"><span class="pi-label">SIDE</span>
         <span class="pi-val" style="color:${pos.side === 'LONG' ? C.green : C.red}">${pos.side}</span></div>
@@ -973,374 +1442,374 @@ function renderPosition(pos) {
         <span class="pi-val ${cls}">$${fmt(pos.unrealized_pnl, 2)}</span></div>
       <div class="pos-item"><span class="pi-label">TRADES</span>  <span class="pi-val">${pos.trade_count}</span></div>
     </div>`;
-}
+    }
 
-function renderRisk(risk) {
-  const el = $('risk-content');
-  if (!el || !risk) return;
-  el.innerHTML = risk.halted
-    ? `<div class="risk-halt">⛔ HALTED</div><div class="risk-reason">${risk.halt_reason}</div>`
-    : `<div class="risk-ok">✓ OK &nbsp; dd=${pctStr(risk.drawdown_pct)}</div>`;
-}
+    function renderRisk(risk) {
+      const el = $('risk-content');
+      if (!el || !risk) return;
+      el.innerHTML = risk.halted
+        ? `<div class="risk-halt">⛔ HALTED</div><div class="risk-reason">${risk.halt_reason}</div>`
+        : `<div class="risk-ok">✓ OK &nbsp; dd=${pctStr(risk.drawdown_pct)}</div>`;
+    }
 
-function renderPortfolio(pf) {
-  if (!pf) return;
-  const set = (id, v, cls) => {
-    const el = $(id); if (!el) return;
-    el.textContent = v; el.className = 'value ' + (cls || 'neu');
-  };
-  set('p-equity', fmtK(pf.equity));
-  set('p-cash',   fmtK(pf.cash));
-  set('p-upnl',   (pf.unrealized_pnl >= 0 ? '+' : '') + fmtK(pf.unrealized_pnl), pctCls(pf.unrealized_pnl));
-  set('p-rpnl',   (pf.realized_pnl   >= 0 ? '+' : '') + fmtK(pf.realized_pnl),   pctCls(pf.realized_pnl));
-  set('p-dd',     pctStr(pf.drawdown_pct), pctCls(pf.drawdown_pct));
-  set('p-cap',    fmtK(pf.initial_capital));
-}
+    function renderPortfolio(pf) {
+      if (!pf) return;
+      const set = (id, v, cls) => {
+        const el = $(id); if (!el) return;
+        el.textContent = v; el.className = 'value ' + (cls || 'neu');
+      };
+      set('p-equity', fmtK(pf.equity));
+      set('p-cash', fmtK(pf.cash));
+      set('p-upnl', (pf.unrealized_pnl >= 0 ? '+' : '') + fmtK(pf.unrealized_pnl), pctCls(pf.unrealized_pnl));
+      set('p-rpnl', (pf.realized_pnl >= 0 ? '+' : '') + fmtK(pf.realized_pnl), pctCls(pf.realized_pnl));
+      set('p-dd', pctStr(pf.drawdown_pct), pctCls(pf.drawdown_pct));
+      set('p-cap', fmtK(pf.initial_capital));
+    }
 
-function renderAgents(ticks) {
-  const el = $('agent-grid');
-  if (!el || !ticks) return;
-  el.innerHTML = Object.entries(ticks).map(([name, count]) => `
+    function renderAgents(ticks) {
+      const el = $('agent-grid');
+      if (!el || !ticks) return;
+      el.innerHTML = Object.entries(ticks).map(([name, count]) => `
     <div class="agent-item">
       <span class="a-ticks">${count.toLocaleString()}</span>
       <span class="a-name">${name}</span>
     </div>`).join('');
-}
+    }
 
-function renderLog(lines) {
-  const el = $('log-box');
-  if (!el || !lines) return;
-  el.innerHTML = lines.map(l => `<div class="log-line">${l}</div>`).join('');
-  el.scrollTop = el.scrollHeight;
-}
+    function renderLog(lines) {
+      const el = $('log-box');
+      if (!el || !lines) return;
+      el.innerHTML = lines.map(l => `<div class="log-line">${l}</div>`).join('');
+      el.scrollTop = el.scrollHeight;
+    }
 
-// ============================================================
-// WebSocket
-// ============================================================
-let ws = null;
+    // ============================================================
+    // WebSocket
+    // ============================================================
+    let ws = null;
 
-function connect() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws`);
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${proto}://${location.host}/ws`);
 
-  ws.onopen = () => {
-    $('status-pill').textContent = '● LIVE';
-    $('status-pill').className   = '';
-  };
-  ws.onclose = () => {
-    $('status-pill').textContent = '● DISCONNECTED';
-    $('status-pill').className   = 'disconnected';
-    setTimeout(connect, 2000);
-  };
-  ws.onerror = () => ws.close();
+      ws.onopen = () => {
+        $('status-pill').textContent = '● LIVE';
+        $('status-pill').className = '';
+      };
+      ws.onclose = () => {
+        $('status-pill').textContent = '● DISCONNECTED';
+        $('status-pill').className = 'disconnected';
+        setTimeout(connect, 2000);
+      };
+      ws.onerror = () => ws.close();
 
-  ws.onmessage = evt => {
-    try {
-      const data    = JSON.parse(evt.data);
-      const tickers = data.tickers || [];
+      ws.onmessage = evt => {
+        try {
+          const data = JSON.parse(evt.data);
+          const tickers = data.tickers || [];
 
-      // Populate ticker dropdown once
-      if (!tickersReady && tickers.length > 0) {
-        tickersReady = true;
-        const sel = $('ticker-select');
-        sel.innerHTML = '';
-        tickers.forEach(t => {
-          ensureTD(t);
-          const opt = document.createElement('option');
-          opt.value = t; opt.textContent = t;
-          sel.appendChild(opt);
-        });
-        sel.disabled   = false;
-        selectedTicker = tickers[0];
-        sel.value      = selectedTicker;
+          // Populate ticker dropdown once
+          if (!tickersReady && tickers.length > 0) {
+            tickersReady = true;
+            const sel = $('ticker-select');
+            sel.innerHTML = '';
+            tickers.forEach(t => {
+              ensureTD(t);
+              const opt = document.createElement('option');
+              opt.value = t; opt.textContent = t;
+              sel.appendChild(opt);
+            });
+            sel.disabled = false;
+            selectedTicker = tickers[0];
+            sel.value = selectedTicker;
+          }
+
+          tickers.forEach(t => {
+            ensureTD(t);
+            const ind = (data.indicators || {})[t];
+            const raw_snap = (data.snapshots || {})[t];
+            const sig = (data.signals || {})[t];
+            const pos = (data.positions || {})[t];
+            const risk = (data.risk || {})[t];
+            const d = TD[t];
+
+            if (ind) { d.latestSnap = ind; processTick(t, ind); }
+            if (sig) { d.latestSig = sig; processSignal(t, sig); }
+            if (pos) { d.latestPos = pos; }
+            if (risk) { d.latestRisk = risk; }
+
+            // Update text panels only for the selected ticker
+            if (t === selectedTicker) {
+              if (ind) {
+                renderIndicators(ind);
+              }
+              if (raw_snap) {
+                renderBook(raw_snap);
+                update3DBook(raw_snap);
+              }
+              renderSignal(sig || d.latestSig);
+              renderPosition(pos || d.latestPos);
+              renderRisk(risk || d.latestRisk);
+            }
+          });
+
+          renderPortfolio(data.portfolio);
+          updatePfChart(data.portfolio);
+          renderAgents(data.agent_ticks);
+          renderLog(data.log || []);
+          renderInvestments(data.investments || []);
+          if (data.portfolio?.equity != null) {
+            recordEquity(data.portfolio.equity);
+            updateTargetPanel();
+          }
+
+        } catch (e) { console.error('WS parse error', e); }
+      };
+    }
+
+    // ============================================================
+    // Selector controls
+    // ============================================================
+    document.getElementById('ticker-select').addEventListener('change', e => {
+      switchTicker(e.target.value);
+    });
+
+    document.getElementById('bar-select').addEventListener('change', e => {
+      barIntervalSec = parseInt(e.target.value, 10);
+      resetChartData();
+    });
+
+    // ============================================================
+    // Clock
+    // ============================================================
+    setInterval(() => {
+      $('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+    }, 1000);
+
+    // ============================================================
+    // Target Calculator
+    // ============================================================
+    let targetEquity = null;
+    const equityHistory = [];   // [{time, equity}]
+    const MAX_EQ_PTS = 120;  // ~2 minutes of history
+
+    function recordEquity(eq) {
+      if (eq == null) return;
+      const t = Date.now() / 1000;
+      equityHistory.push({ time: t, equity: eq });
+      if (equityHistory.length > MAX_EQ_PTS) equityHistory.shift();
+    }
+
+    // Linear regression slope in $/sec over the history window
+    function equitySlope() {
+      const n = equityHistory.length;
+      if (n < 5) return null;
+      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+      const t0 = equityHistory[0].time;
+      for (const p of equityHistory) {
+        const x = p.time - t0;
+        sumX += x; sumY += p.equity;
+        sumXY += x * p.equity; sumXX += x * x;
+      }
+      const denom = n * sumXX - sumX * sumX;
+      if (Math.abs(denom) < 1e-9) return 0;
+      return (n * sumXY - sumX * sumY) / denom;  // $/sec
+    }
+
+    function fmtDuration(secs) {
+      if (!isFinite(secs) || secs < 0) return null;
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      const s = Math.floor(secs % 60);
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    function calcTarget() {
+      const raw = parseFloat($('target-input').value);
+      if (isNaN(raw) || raw <= 0) { alert('Enter a valid positive target amount.'); return; }
+      targetEquity = raw;
+      $('target-set-display').textContent = 'Target: ' + fmtK(targetEquity);
+      updateTargetPanel();
+    }
+
+    function updateTargetPanel() {
+      const current = equityHistory.length ? equityHistory[equityHistory.length - 1].equity : null;
+      const slope = equitySlope();   // $/sec
+      const etaEl = $('tc-eta');
+      const remEl = $('tc-remaining');
+      const rateEl = $('tc-rate');
+      const toGoEl = $('tc-to-go');
+      const sugEl = $('tc-suggestions');
+
+      // Rate display (always show, even without target)
+      if (slope !== null) {
+        const perMin = slope * 60;
+        rateEl.textContent = (perMin >= 0 ? '+' : '') + fmtK(perMin) + '/min';
+        rateEl.style.color = slope >= 0 ? C.green : C.red;
+      } else {
+        rateEl.textContent = '— gathering data…';
+        rateEl.style.color = C.text;
       }
 
-      tickers.forEach(t => {
-        ensureTD(t);
-        const ind = (data.indicators || {})[t];
-        const raw_snap = (data.snapshots || {})[t];
-        const sig  = (data.signals    || {})[t];
-        const pos  = (data.positions  || {})[t];
-        const risk = (data.risk       || {})[t];
-        const d    = TD[t];
+      if (targetEquity === null || current === null) {
+        etaEl.textContent = '—';
+        remEl.textContent = 'Set a target to begin projection';
+        toGoEl.textContent = '— remaining';
+        sugEl.innerHTML = '<span class="suggestion-pill neutral">Enter a target equity amount above</span>';
+        return;
+      }
 
-        if (ind) { d.latestSnap = ind; processTick(t, ind); }
-        if (sig)  { d.latestSig  = sig;  processSignal(t, sig); }
-        if (pos)  { d.latestPos  = pos; }
-        if (risk) { d.latestRisk = risk; }
+      const remaining = targetEquity - current;
+      toGoEl.textContent = (remaining >= 0 ? fmtK(remaining) : '−' + fmtK(-remaining)) + ' remaining';
 
-        // Update text panels only for the selected ticker
-        if (t === selectedTicker) {
-          if (ind) { 
-            renderIndicators(ind); 
-          }
-          if (raw_snap) {
-            renderBook(raw_snap);
-            update3DBook(raw_snap);
-          }
-          renderSignal(sig  || d.latestSig);
-          renderPosition(pos  || d.latestPos);
-          renderRisk(risk || d.latestRisk);
-        }
+      // Build suggestions
+      const pills = [];
+      const lastRisk = selectedTicker && TD[selectedTicker] ? TD[selectedTicker].latestRisk : null;
+      const lastSig = selectedTicker && TD[selectedTicker] ? TD[selectedTicker].latestSig : null;
+      const ddPct = lastRisk?.drawdown_pct ?? null;
+
+      // Target already hit?
+      if (remaining <= 0) {
+        etaEl.textContent = 'REACHED';
+        etaEl.style.color = C.green;
+        remEl.textContent = 'Target already achieved!';
+        pills.push({ cls: 'good', text: 'Target achieved — consider raising your goal' });
+      } else if (slope === null) {
+        etaEl.textContent = '—';
+        remEl.textContent = 'Gathering rate data…';
+      } else if (slope <= 0) {
+        etaEl.textContent = 'N/A';
+        etaEl.style.color = C.red;
+        remEl.textContent = 'Portfolio declining — target not reachable at current rate';
+        pills.push({ cls: 'bad', text: 'Negative growth — engine may be losing money' });
+      } else {
+        const secsToTarget = remaining / slope;
+        const dur = fmtDuration(secsToTarget);
+        const eta = new Date(Date.now() + secsToTarget * 1000);
+        const etaStr = eta.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+          + (secsToTarget > 86400 ? ' (+' + Math.floor(secsToTarget / 86400) + 'd)' : '');
+        etaEl.textContent = etaStr;
+        etaEl.style.color = C.accent;
+        remEl.textContent = dur ? `~${dur} from now` : 'almost there';
+        if (secsToTarget > 86400)
+          pills.push({ cls: 'warn', text: 'Target is 24h+ away — consider a closer milestone' });
+        else if (secsToTarget < 300)
+          pills.push({ cls: 'good', text: 'Target very close — less than 5 minutes away' });
+      }
+
+      // Risk suggestions
+      if (lastRisk?.halted) {
+        pills.push({ cls: 'bad', text: 'Engine halted — no trades running (' + (lastRisk.halt_reason || 'unknown') + ')' });
+      }
+      if (ddPct != null && ddPct < -5) {
+        pills.push({ cls: 'warn', text: `Drawdown ${Math.abs(ddPct).toFixed(1)}% — consider reducing position risk` });
+      } else if (ddPct != null && ddPct < -2) {
+        pills.push({ cls: 'warn', text: `Drawdown ${Math.abs(ddPct).toFixed(1)}% — monitor closely` });
+      }
+
+      // Signal suggestions
+      if (lastSig?.confidence != null) {
+        if (lastSig.confidence < 0.35)
+          pills.push({ cls: 'warn', text: 'Signal confidence low — engine is uncertain' });
+        else if (lastSig.confidence > 0.75 && lastSig.direction !== 'HOLD')
+          pills.push({ cls: 'good', text: 'High-confidence ' + lastSig.direction + ' signal active' });
+      }
+
+      // Slope suggestions
+      if (slope !== null && slope > 0 && remaining > 0) {
+        const perHour = slope * 3600;
+        if (perHour < 10)
+          pills.push({ cls: 'neutral', text: 'Growth rate is slow — engine may need more market activity' });
+      }
+
+      if (pills.length === 0)
+        pills.push({ cls: 'neutral', text: 'All systems nominal' });
+
+      sugEl.innerHTML = pills.map(p =>
+        `<span class="suggestion-pill ${p.cls}">${p.text}</span>`
+      ).join('');
+    }
+
+    // ============================================================
+    // Investment Forecast
+    // ============================================================
+    function calcForecast() {
+      const amount = parseFloat($('fc-amount').value);
+      if (isNaN(amount) || amount <= 0) { alert('Enter a valid positive amount.'); return; }
+      const months = parseFloat($('fc-months').value) || 3;
+      const slope = equitySlope();   // $/sec
+      const currentEq = equityHistory.length ? equityHistory[equityHistory.length - 1].equity : null;
+
+      if (slope === null || currentEq === null || currentEq <= 0) {
+        $('fc-note').textContent = 'Gathering rate data — please wait a few seconds and try again.';
+        return;
+      }
+
+      const projSecs = months * 30.44 * 86400;
+      [
+        { id: 'pess', mult: 0.3 },
+        { id: 'base', mult: 1.0 },
+        { id: 'opti', mult: 2.5 },
+      ].forEach(({ id, mult }) => {
+        const projEq = currentEq + slope * mult * projSecs;
+        const ratio = Math.max(0, projEq) / currentEq;
+        const projAmt = amount * ratio;
+        const roi = projAmt - amount;
+        const roiPct = (ratio - 1) * 100;
+
+        const valEl = $('fc-' + id + '-val');
+        const roiEl = $('fc-' + id + '-roi');
+        valEl.textContent = fmtK(Math.max(0, projAmt));
+        valEl.className = 'scenario-value ' + pctCls(roi);
+        roiEl.textContent = (roi >= 0 ? '+' : '') + fmtK(roi) + '  (' + (roiPct >= 0 ? '+' : '') + fmt(roiPct, 1) + '%)';
+        roiEl.style.color = roi >= 0 ? C.green : C.red;
       });
 
-      renderPortfolio(data.portfolio);
-      updatePfChart(data.portfolio);
-      renderAgents(data.agent_ticks);
-      renderLog(data.log || []);
-      renderInvestments(data.investments || []);
-      if (data.portfolio?.equity != null) {
-        recordEquity(data.portfolio.equity);
-        updateTargetPanel();
+      const perMin = slope * 60;
+      $('fc-note').textContent =
+        'Based on current growth rate: ' + (perMin >= 0 ? '+' : '') + fmtK(perMin) + '/min  ·  ' +
+        'projecting ' + months + ' month' + (months !== 1 ? 's' : '') + ' forward  ·  ' +
+        'not financial advice — simulated engine performance only';
+    }
+
+    // ============================================================
+    // Live Portfolio Simulator
+    // ============================================================
+    async function investNow() {
+      const amount = parseFloat($('sim-amount').value);
+      if (isNaN(amount) || amount <= 0) { alert('Enter a valid positive amount.'); return; }
+      try {
+        const res = await fetch('/api/invest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount }),
+        });
+        if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed to invest'); return; }
+        $('sim-amount').value = '';
+      } catch (e) { alert('Network error: ' + e.message); }
+    }
+
+    async function closeInvestment(id) {
+      try {
+        await fetch('/api/invest/' + id, { method: 'DELETE' });
+      } catch (e) { console.error('Failed to close investment', e); }
+    }
+
+    function renderInvestments(invs) {
+      const wrap = $('inv-table-wrap');
+      if (!wrap) return;
+      if (!invs || invs.length === 0) {
+        wrap.innerHTML = '<div id="inv-empty">— no active investments — enter an amount above to simulate —</div>';
+        return;
       }
-
-    } catch(e) { console.error('WS parse error', e); }
-  };
-}
-
-// ============================================================
-// Selector controls
-// ============================================================
-document.getElementById('ticker-select').addEventListener('change', e => {
-  switchTicker(e.target.value);
-});
-
-document.getElementById('bar-select').addEventListener('change', e => {
-  barIntervalSec = parseInt(e.target.value, 10);
-  resetChartData();
-});
-
-// ============================================================
-// Clock
-// ============================================================
-setInterval(() => {
-  $('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
-}, 1000);
-
-// ============================================================
-// Target Calculator
-// ============================================================
-let targetEquity   = null;
-const equityHistory = [];   // [{time, equity}]
-const MAX_EQ_PTS    = 120;  // ~2 minutes of history
-
-function recordEquity(eq) {
-  if (eq == null) return;
-  const t = Date.now() / 1000;
-  equityHistory.push({ time: t, equity: eq });
-  if (equityHistory.length > MAX_EQ_PTS) equityHistory.shift();
-}
-
-// Linear regression slope in $/sec over the history window
-function equitySlope() {
-  const n = equityHistory.length;
-  if (n < 5) return null;
-  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-  const t0 = equityHistory[0].time;
-  for (const p of equityHistory) {
-    const x = p.time - t0;
-    sumX  += x; sumY  += p.equity;
-    sumXY += x * p.equity; sumXX += x * x;
-  }
-  const denom = n * sumXX - sumX * sumX;
-  if (Math.abs(denom) < 1e-9) return 0;
-  return (n * sumXY - sumX * sumY) / denom;  // $/sec
-}
-
-function fmtDuration(secs) {
-  if (!isFinite(secs) || secs < 0) return null;
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = Math.floor(secs % 60);
-  if (h > 0)  return `${h}h ${m}m`;
-  if (m > 0)  return `${m}m ${s}s`;
-  return `${s}s`;
-}
-
-function calcTarget() {
-  const raw = parseFloat($('target-input').value);
-  if (isNaN(raw) || raw <= 0) { alert('Enter a valid positive target amount.'); return; }
-  targetEquity = raw;
-  $('target-set-display').textContent = 'Target: ' + fmtK(targetEquity);
-  updateTargetPanel();
-}
-
-function updateTargetPanel() {
-  const current  = equityHistory.length ? equityHistory[equityHistory.length - 1].equity : null;
-  const slope    = equitySlope();   // $/sec
-  const etaEl    = $('tc-eta');
-  const remEl    = $('tc-remaining');
-  const rateEl   = $('tc-rate');
-  const toGoEl   = $('tc-to-go');
-  const sugEl    = $('tc-suggestions');
-
-  // Rate display (always show, even without target)
-  if (slope !== null) {
-    const perMin = slope * 60;
-    rateEl.textContent  = (perMin >= 0 ? '+' : '') + fmtK(perMin) + '/min';
-    rateEl.style.color  = slope >= 0 ? C.green : C.red;
-  } else {
-    rateEl.textContent = '— gathering data…';
-    rateEl.style.color = C.text;
-  }
-
-  if (targetEquity === null || current === null) {
-    etaEl.textContent = '—';
-    remEl.textContent = 'Set a target to begin projection';
-    toGoEl.textContent = '— remaining';
-    sugEl.innerHTML = '<span class="suggestion-pill neutral">Enter a target equity amount above</span>';
-    return;
-  }
-
-  const remaining = targetEquity - current;
-  toGoEl.textContent = (remaining >= 0 ? fmtK(remaining) : '−' + fmtK(-remaining)) + ' remaining';
-
-  // Build suggestions
-  const pills = [];
-  const lastRisk  = selectedTicker && TD[selectedTicker] ? TD[selectedTicker].latestRisk  : null;
-  const lastSig   = selectedTicker && TD[selectedTicker] ? TD[selectedTicker].latestSig   : null;
-  const ddPct     = lastRisk?.drawdown_pct ?? null;
-
-  // Target already hit?
-  if (remaining <= 0) {
-    etaEl.textContent = 'REACHED';
-    etaEl.style.color = C.green;
-    remEl.textContent  = 'Target already achieved!';
-    pills.push({ cls: 'good', text: 'Target achieved — consider raising your goal' });
-  } else if (slope === null) {
-    etaEl.textContent  = '—';
-    remEl.textContent  = 'Gathering rate data…';
-  } else if (slope <= 0) {
-    etaEl.textContent  = 'N/A';
-    etaEl.style.color  = C.red;
-    remEl.textContent  = 'Portfolio declining — target not reachable at current rate';
-    pills.push({ cls: 'bad', text: 'Negative growth — engine may be losing money' });
-  } else {
-    const secsToTarget = remaining / slope;
-    const dur = fmtDuration(secsToTarget);
-    const eta = new Date(Date.now() + secsToTarget * 1000);
-    const etaStr = eta.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
-                 + (secsToTarget > 86400 ? ' (+' + Math.floor(secsToTarget / 86400) + 'd)' : '');
-    etaEl.textContent  = etaStr;
-    etaEl.style.color  = C.accent;
-    remEl.textContent  = dur ? `~${dur} from now` : 'almost there';
-    if (secsToTarget > 86400)
-      pills.push({ cls: 'warn', text: 'Target is 24h+ away — consider a closer milestone' });
-    else if (secsToTarget < 300)
-      pills.push({ cls: 'good', text: 'Target very close — less than 5 minutes away' });
-  }
-
-  // Risk suggestions
-  if (lastRisk?.halted) {
-    pills.push({ cls: 'bad', text: 'Engine halted — no trades running (' + (lastRisk.halt_reason || 'unknown') + ')' });
-  }
-  if (ddPct != null && ddPct < -5) {
-    pills.push({ cls: 'warn', text: `Drawdown ${Math.abs(ddPct).toFixed(1)}% — consider reducing position risk` });
-  } else if (ddPct != null && ddPct < -2) {
-    pills.push({ cls: 'warn', text: `Drawdown ${Math.abs(ddPct).toFixed(1)}% — monitor closely` });
-  }
-
-  // Signal suggestions
-  if (lastSig?.confidence != null) {
-    if (lastSig.confidence < 0.35)
-      pills.push({ cls: 'warn', text: 'Signal confidence low — engine is uncertain' });
-    else if (lastSig.confidence > 0.75 && lastSig.direction !== 'HOLD')
-      pills.push({ cls: 'good', text: 'High-confidence ' + lastSig.direction + ' signal active' });
-  }
-
-  // Slope suggestions
-  if (slope !== null && slope > 0 && remaining > 0) {
-    const perHour = slope * 3600;
-    if (perHour < 10)
-      pills.push({ cls: 'neutral', text: 'Growth rate is slow — engine may need more market activity' });
-  }
-
-  if (pills.length === 0)
-    pills.push({ cls: 'neutral', text: 'All systems nominal' });
-
-  sugEl.innerHTML = pills.map(p =>
-    `<span class="suggestion-pill ${p.cls}">${p.text}</span>`
-  ).join('');
-}
-
-// ============================================================
-// Investment Forecast
-// ============================================================
-function calcForecast() {
-  const amount = parseFloat($('fc-amount').value);
-  if (isNaN(amount) || amount <= 0) { alert('Enter a valid positive amount.'); return; }
-  const months = parseFloat($('fc-months').value) || 3;
-  const slope  = equitySlope();   // $/sec
-  const currentEq = equityHistory.length ? equityHistory[equityHistory.length - 1].equity : null;
-
-  if (slope === null || currentEq === null || currentEq <= 0) {
-    $('fc-note').textContent = 'Gathering rate data — please wait a few seconds and try again.';
-    return;
-  }
-
-  const projSecs = months * 30.44 * 86400;
-  [
-    { id: 'pess', mult: 0.3  },
-    { id: 'base', mult: 1.0  },
-    { id: 'opti', mult: 2.5  },
-  ].forEach(({ id, mult }) => {
-    const projEq  = currentEq + slope * mult * projSecs;
-    const ratio   = Math.max(0, projEq) / currentEq;
-    const projAmt = amount * ratio;
-    const roi     = projAmt - amount;
-    const roiPct  = (ratio - 1) * 100;
-
-    const valEl = $('fc-' + id + '-val');
-    const roiEl = $('fc-' + id + '-roi');
-    valEl.textContent = fmtK(Math.max(0, projAmt));
-    valEl.className   = 'scenario-value ' + pctCls(roi);
-    roiEl.textContent = (roi >= 0 ? '+' : '') + fmtK(roi) + '  (' + (roiPct >= 0 ? '+' : '') + fmt(roiPct, 1) + '%)';
-    roiEl.style.color = roi >= 0 ? C.green : C.red;
-  });
-
-  const perMin = slope * 60;
-  $('fc-note').textContent =
-    'Based on current growth rate: ' + (perMin >= 0 ? '+' : '') + fmtK(perMin) + '/min  ·  ' +
-    'projecting ' + months + ' month' + (months !== 1 ? 's' : '') + ' forward  ·  ' +
-    'not financial advice — simulated engine performance only';
-}
-
-// ============================================================
-// Live Portfolio Simulator
-// ============================================================
-async function investNow() {
-  const amount = parseFloat($('sim-amount').value);
-  if (isNaN(amount) || amount <= 0) { alert('Enter a valid positive amount.'); return; }
-  try {
-    const res = await fetch('/api/invest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount }),
-    });
-    if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed to invest'); return; }
-    $('sim-amount').value = '';
-  } catch (e) { alert('Network error: ' + e.message); }
-}
-
-async function closeInvestment(id) {
-  try {
-    await fetch('/api/invest/' + id, { method: 'DELETE' });
-  } catch (e) { console.error('Failed to close investment', e); }
-}
-
-function renderInvestments(invs) {
-  const wrap = $('inv-table-wrap');
-  if (!wrap) return;
-  if (!invs || invs.length === 0) {
-    wrap.innerHTML = '<div id="inv-empty">— no active investments — enter an amount above to simulate —</div>';
-    return;
-  }
-  const now = Date.now() / 1000;
-  const rows = invs.map((inv, i) => {
-    const roiCls = inv.roi_pct >= 0 ? 'pos' : 'neg';
-    const age    = Math.round(now - inv.invested_at);
-    const ageStr = age < 60 ? age + 's' : Math.floor(age / 60) + 'm ' + (age % 60) + 's';
-    return `<tr>
+      const now = Date.now() / 1000;
+      const rows = invs.map((inv, i) => {
+        const roiCls = inv.roi_pct >= 0 ? 'pos' : 'neg';
+        const age = Math.round(now - inv.invested_at);
+        const ageStr = age < 60 ? age + 's' : Math.floor(age / 60) + 'm ' + (age % 60) + 's';
+        return `<tr>
       <td>#${i + 1} <span style="font-size:10px;color:var(--muted);">${ageStr} ago</span></td>
       <td>${fmtK(inv.amount)}</td>
       <td style="color:var(--accent);">${fmtK(inv.current_value)}</td>
@@ -1348,8 +1817,8 @@ function renderInvestments(invs) {
       <td class="${roiCls}">${inv.roi_pct >= 0 ? '+' : ''}${fmt(inv.roi_pct, 2)}%</td>
       <td><button class="close-inv-btn" onclick="closeInvestment('${inv.id}')">×</button></td>
     </tr>`;
-  }).join('');
-  wrap.innerHTML = `
+      }).join('');
+      wrap.innerHTML = `
     <table class="inv-table">
       <thead><tr>
         <th style="text-align:left;">Investment</th>
@@ -1361,315 +1830,316 @@ function renderInvestments(invs) {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
-}
-
-// ============================================================
-// Tab / page switching
-// ============================================================
-function switchPage(page) {
-  document.querySelectorAll('.page-section').forEach(el => {
-    el.classList.toggle('visible', el.dataset.page === page);
-  });
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.trim().toLowerCase() === page ||
-      btn.getAttribute('onclick').includes("'" + page + "'"));
-  });
-  // Charts need resize after becoming visible
-  if (page === 'market' && mainChart) {
-    requestAnimationFrame(() => {
-      const el = document.getElementById('main-chart-container');
-      if (el) mainChart.applyOptions({ width: el.clientWidth });
-      if (selectedTicker) switchTicker(selectedTicker);
-    });
-  }
-  if (page === 'overview' && pfChart) {
-    requestAnimationFrame(() => {
-      const el = document.getElementById('pf-chart-container');
-      if (el) pfChart.applyOptions({ width: el.clientWidth });
-    });
-  }
-  if (page === '3dbook' && renderer) {
-    requestAnimationFrame(() => {
-      const el = document.getElementById('three-container');
-      if (el && el.clientWidth > 0) {
-        camera.aspect = el.clientWidth / el.clientHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(el.clientWidth, el.clientHeight);
-      }
-    });
-  }
-}
-
-// ============================================================
-// 3D Order Book Visualization — Cyberpunk Edition
-// ============================================================
-let scene, camera, renderer, bookMesh, orbitControls, gridFloor;
-let bidGlowMesh, askGlowMesh;
-const BOOK_HISTORY_LEN = 60;
-const MAX_LEVELS = 10; // 5 bids + 5 asks
-const BAR_GAP = 1.4;
-const TIME_GAP = 1.0;
-let autoRotate = true;
-
-function init3DBook() {
-  const container = document.getElementById('three-container');
-  if (!container) return;
-
-  const width = container.clientWidth || window.innerWidth || 800;
-  const height = container.clientHeight || 600;
-
-  // Scene — deep dark blue with fog
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x060614);
-  scene.fog = new THREE.FogExp2(0x060614, 0.012);
-
-  // Camera
-  camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 500);
-  camera.position.set(18, 22, 40);
-  camera.lookAt(0, 3, 0);
-
-  // Renderer
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(width, height);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  container.appendChild(renderer.domElement);
-
-  // Orbit Controls — interactive rotation, zoom, pan
-  orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
-  orbitControls.enableDamping = true;
-  orbitControls.dampingFactor = 0.08;
-  orbitControls.enablePan = true;
-  orbitControls.minDistance = 10;
-  orbitControls.maxDistance = 120;
-  orbitControls.maxPolarAngle = Math.PI / 2.1;
-  orbitControls.target.set(0, 3, -5);
-  orbitControls.autoRotate = true;
-  orbitControls.autoRotateSpeed = 0.6;
-
-  // Stop auto-rotate on user interaction
-  renderer.domElement.addEventListener('pointerdown', () => {
-    orbitControls.autoRotate = false;
-    autoRotate = false;
-  });
-
-  // Lighting — dramatic multi-source
-  const ambientLight = new THREE.AmbientLight(0x1a1a3e, 0.5);
-  scene.add(ambientLight);
-
-  const keyLight = new THREE.DirectionalLight(0x7dd3fc, 0.8);
-  keyLight.position.set(15, 30, 20);
-  keyLight.castShadow = true;
-  keyLight.shadow.mapSize.width = 1024;
-  keyLight.shadow.mapSize.height = 1024;
-  scene.add(keyLight);
-
-  const fillLight = new THREE.DirectionalLight(0x818cf8, 0.3);
-  fillLight.position.set(-10, 15, -10);
-  scene.add(fillLight);
-
-  // Neon point lights for glow
-  const bidGlow = new THREE.PointLight(0x22c55e, 1.2, 50);
-  bidGlow.position.set(-5, 10, 0);
-  scene.add(bidGlow);
-
-  const askGlow = new THREE.PointLight(0xef4444, 1.2, 50);
-  askGlow.position.set(5, 10, 0);
-  scene.add(askGlow);
-
-  // Ground grid
-  const gridHelper = new THREE.GridHelper(100, 40, 0x1e293b, 0x0f172a);
-  gridHelper.position.y = -0.01;
-  scene.add(gridHelper);
-
-  // Reflective ground plane
-  const groundGeo = new THREE.PlaneGeometry(100, 100);
-  const groundMat = new THREE.MeshPhongMaterial({
-    color: 0x080820, specular: 0x222244, shininess: 80,
-    transparent: true, opacity: 0.7
-  });
-  gridFloor = new THREE.Mesh(groundGeo, groundMat);
-  gridFloor.rotation.x = -Math.PI / 2;
-  gridFloor.position.y = -0.02;
-  gridFloor.receiveShadow = true;
-  scene.add(gridFloor);
-
-  // Center axis glow line (mid-price marker)
-  const axisGeo = new THREE.BoxGeometry(0.05, 0.05, BOOK_HISTORY_LEN * TIME_GAP + 10);
-  const axisMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.4 });
-  const axisLine = new THREE.Mesh(axisGeo, axisMat);
-  axisLine.position.set(0, 0.03, -(BOOK_HISTORY_LEN * TIME_GAP) / 2);
-  scene.add(axisLine);
-
-  // InstancedMesh for order book bars
-  const barGeo = new THREE.BoxGeometry(1, 1, 0.7);
-  const barMat = new THREE.MeshPhongMaterial({
-    color: 0xffffff, transparent: true, opacity: 0.92,
-    shininess: 120, specular: 0x444466
-  });
-  bookMesh = new THREE.InstancedMesh(barGeo, barMat, BOOK_HISTORY_LEN * MAX_LEVELS);
-  bookMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  bookMesh.castShadow = true;
-  bookMesh.receiveShadow = true;
-
-  // Initialize all instances as hidden
-  const dummy = new THREE.Object3D();
-  const defColor = new THREE.Color(0x000000);
-  dummy.position.set(0, -100, 0);
-  dummy.scale.set(0, 0, 0);
-  dummy.updateMatrix();
-  for (let i = 0; i < BOOK_HISTORY_LEN * MAX_LEVELS; i++) {
-    bookMesh.setMatrixAt(i, dummy.matrix);
-    bookMesh.setColorAt(i, defColor);
-  }
-  bookMesh.instanceMatrix.needsUpdate = true;
-  if (bookMesh.instanceColor) bookMesh.instanceColor.needsUpdate = true;
-  scene.add(bookMesh);
-
-  // Resize
-  const resizeObs = new ResizeObserver(() => {
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w > 0 && h > 0) {
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
     }
-  });
-  resizeObs.observe(container);
 
-  animate3D();
-}
+    // ============================================================
+    // Tab / page switching
+    // ============================================================
+    function switchPage(page) {
+      document.querySelectorAll('.page-section').forEach(el => {
+        el.classList.toggle('visible', el.dataset.page === page);
+      });
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.trim().toLowerCase() === page ||
+          btn.getAttribute('onclick').includes("'" + page + "'"));
+      });
+      // Charts need resize after becoming visible
+      if (page === 'market' && mainChart) {
+        requestAnimationFrame(() => {
+          const el = document.getElementById('main-chart-container');
+          if (el) mainChart.applyOptions({ width: el.clientWidth });
+          if (selectedTicker) switchTicker(selectedTicker);
+        });
+      }
+      if (page === 'overview' && pfChart) {
+        requestAnimationFrame(() => {
+          const el = document.getElementById('pf-chart-container');
+          if (el) pfChart.applyOptions({ width: el.clientWidth });
+        });
+      }
+      if (page === '3dbook' && renderer) {
+        requestAnimationFrame(() => {
+          const el = document.getElementById('three-container');
+          if (el && el.clientWidth > 0) {
+            camera.aspect = el.clientWidth / el.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(el.clientWidth, el.clientHeight);
+          }
+        });
+      }
+    }
 
-function animate3D() {
-  requestAnimationFrame(animate3D);
-  if (!renderer || !scene || !camera) return;
-  if (orbitControls) orbitControls.update();
-  renderer.render(scene, camera);
-}
+    // ============================================================
+    // 3D Order Book Visualization — Cyberpunk Edition
+    // ============================================================
+    let scene, camera, renderer, bookMesh, orbitControls, gridFloor;
+    let bidGlowMesh, askGlowMesh;
+    const BOOK_HISTORY_LEN = 60;
+    const MAX_LEVELS = 10; // 5 bids + 5 asks
+    const BAR_GAP = 1.4;
+    const TIME_GAP = 1.0;
+    let autoRotate = true;
 
-// Historical snapshot queue
-const bookHistory = [];
+    function init3DBook() {
+      const container = document.getElementById('three-container');
+      if (!container) return;
 
-function update3DBook(snap) {
-  if (!snap || !bookMesh) return;
+      const width = container.clientWidth || window.innerWidth || 800;
+      const height = container.clientHeight || 600;
 
-  // Throttle to ~10 fps
-  const now = Date.now();
-  if (update3DBook._last && (now - update3DBook._last < 100)) return;
-  update3DBook._last = now;
+      // Scene — deep dark blue with fog
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x060614);
+      scene.fog = new THREE.FogExp2(0x060614, 0.012);
 
-  bookHistory.push(snap);
-  if (bookHistory.length > BOOK_HISTORY_LEN) bookHistory.shift();
+      // Camera
+      camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 500);
+      camera.position.set(18, 22, 40);
+      camera.lookAt(0, 3, 0);
 
-  // Update HUD stats
-  const mid3d = document.getElementById('book3d-mid');
-  const spr3d = document.getElementById('book3d-spread');
-  const dep3d = document.getElementById('book3d-depth');
-  if (mid3d && snap.mid_price != null) mid3d.textContent = '$' + Number(snap.mid_price).toFixed(4);
-  if (spr3d && snap.spread != null) spr3d.textContent = 'spread $' + Number(snap.spread).toFixed(4);
-  if (dep3d) {
-    const bv = snap.total_bid_volume || 0;
-    const av = snap.total_ask_volume || 0;
-    dep3d.textContent = 'bid ' + bv.toLocaleString() + ' / ask ' + av.toLocaleString();
-  }
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(width, height);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      container.appendChild(renderer.domElement);
 
-  // Find max volume for normalization
-  let maxVol = 1;
-  bookHistory.forEach(s => {
-    (s.bids || []).forEach(b => { if (b[1] > maxVol) maxVol = b[1]; });
-    (s.asks || []).forEach(a => { if (a[1] > maxVol) maxVol = a[1]; });
-  });
+      // Orbit Controls — interactive rotation, zoom, pan
+      orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+      orbitControls.enableDamping = true;
+      orbitControls.dampingFactor = 0.08;
+      orbitControls.enablePan = true;
+      orbitControls.minDistance = 10;
+      orbitControls.maxDistance = 120;
+      orbitControls.maxPolarAngle = Math.PI / 2.1;
+      orbitControls.target.set(0, 3, -5);
+      orbitControls.autoRotate = true;
+      orbitControls.autoRotateSpeed = 0.6;
 
-  const dummy = new THREE.Object3D();
-  const color = new THREE.Color();
-  const bidColorBase = new THREE.Color(0x22c55e);
-  const bidColorBright = new THREE.Color(0x86efac);
-  const askColorBase = new THREE.Color(0xef4444);
-  const askColorBright = new THREE.Color(0xfca5a5);
+      // Stop auto-rotate on user interaction
+      renderer.domElement.addEventListener('pointerdown', () => {
+        orbitControls.autoRotate = false;
+        autoRotate = false;
+      });
 
-  let idx = 0;
-  for (let t = 0; t < bookHistory.length; t++) {
-    const s = bookHistory[t];
-    const bids = (s.bids || []).slice(0, 5);
-    const asks = (s.asks || []).slice(0, 5);
+      // Lighting — dramatic multi-source
+      const ambientLight = new THREE.AmbientLight(0x1a1a3e, 0.5);
+      scene.add(ambientLight);
 
-    // Time position: newest at front (z=0), oldest recedes
-    const z = -(bookHistory.length - 1 - t) * TIME_GAP;
-    // Opacity/brightness fades for older entries
-    const age = t / Math.max(1, bookHistory.length - 1); // 0=oldest, 1=newest
+      const keyLight = new THREE.DirectionalLight(0x7dd3fc, 0.8);
+      keyLight.position.set(15, 30, 20);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.width = 1024;
+      keyLight.shadow.mapSize.height = 1024;
+      scene.add(keyLight);
 
-    // Bids: left of center (negative X)
-    for (let lvl = 0; lvl < 5; lvl++) {
-      if (lvl < bids.length) {
-        const vol = bids[lvl][1];
-        const norm = vol / maxVol;
-        const h = Math.max(0.15, norm * 18);
-        const x = -(lvl + 1) * BAR_GAP;
+      const fillLight = new THREE.DirectionalLight(0x818cf8, 0.3);
+      fillLight.position.set(-10, 15, -10);
+      scene.add(fillLight);
 
-        dummy.position.set(x, h / 2, z);
-        dummy.scale.set(1.1, h, 0.65);
-        dummy.updateMatrix();
-        bookMesh.setMatrixAt(idx, dummy.matrix);
+      // Neon point lights for glow
+      const bidGlow = new THREE.PointLight(0x22c55e, 1.2, 50);
+      bidGlow.position.set(-5, 10, 0);
+      scene.add(bidGlow);
 
-        color.copy(bidColorBase).lerp(bidColorBright, norm * 0.7 * age);
-        bookMesh.setColorAt(idx, color);
-      } else {
+      const askGlow = new THREE.PointLight(0xef4444, 1.2, 50);
+      askGlow.position.set(5, 10, 0);
+      scene.add(askGlow);
+
+      // Ground grid
+      const gridHelper = new THREE.GridHelper(100, 40, 0x1e293b, 0x0f172a);
+      gridHelper.position.y = -0.01;
+      scene.add(gridHelper);
+
+      // Reflective ground plane
+      const groundGeo = new THREE.PlaneGeometry(100, 100);
+      const groundMat = new THREE.MeshPhongMaterial({
+        color: 0x080820, specular: 0x222244, shininess: 80,
+        transparent: true, opacity: 0.7
+      });
+      gridFloor = new THREE.Mesh(groundGeo, groundMat);
+      gridFloor.rotation.x = -Math.PI / 2;
+      gridFloor.position.y = -0.02;
+      gridFloor.receiveShadow = true;
+      scene.add(gridFloor);
+
+      // Center axis glow line (mid-price marker)
+      const axisGeo = new THREE.BoxGeometry(0.05, 0.05, BOOK_HISTORY_LEN * TIME_GAP + 10);
+      const axisMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.4 });
+      const axisLine = new THREE.Mesh(axisGeo, axisMat);
+      axisLine.position.set(0, 0.03, -(BOOK_HISTORY_LEN * TIME_GAP) / 2);
+      scene.add(axisLine);
+
+      // InstancedMesh for order book bars
+      const barGeo = new THREE.BoxGeometry(1, 1, 0.7);
+      const barMat = new THREE.MeshPhongMaterial({
+        color: 0xffffff, transparent: true, opacity: 0.92,
+        shininess: 120, specular: 0x444466
+      });
+      bookMesh = new THREE.InstancedMesh(barGeo, barMat, BOOK_HISTORY_LEN * MAX_LEVELS);
+      bookMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      bookMesh.castShadow = true;
+      bookMesh.receiveShadow = true;
+
+      // Initialize all instances as hidden
+      const dummy = new THREE.Object3D();
+      const defColor = new THREE.Color(0x000000);
+      dummy.position.set(0, -100, 0);
+      dummy.scale.set(0, 0, 0);
+      dummy.updateMatrix();
+      for (let i = 0; i < BOOK_HISTORY_LEN * MAX_LEVELS; i++) {
+        bookMesh.setMatrixAt(i, dummy.matrix);
+        bookMesh.setColorAt(i, defColor);
+      }
+      bookMesh.instanceMatrix.needsUpdate = true;
+      if (bookMesh.instanceColor) bookMesh.instanceColor.needsUpdate = true;
+      scene.add(bookMesh);
+
+      // Resize
+      const resizeObs = new ResizeObserver(() => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (w > 0 && h > 0) {
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h);
+        }
+      });
+      resizeObs.observe(container);
+
+      animate3D();
+    }
+
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+      if (!renderer || !scene || !camera) return;
+      if (orbitControls) orbitControls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Historical snapshot queue
+    const bookHistory = [];
+
+    function update3DBook(snap) {
+      if (!snap || !bookMesh) return;
+
+      // Throttle to ~10 fps
+      const now = Date.now();
+      if (update3DBook._last && (now - update3DBook._last < 100)) return;
+      update3DBook._last = now;
+
+      bookHistory.push(snap);
+      if (bookHistory.length > BOOK_HISTORY_LEN) bookHistory.shift();
+
+      // Update HUD stats
+      const mid3d = document.getElementById('book3d-mid');
+      const spr3d = document.getElementById('book3d-spread');
+      const dep3d = document.getElementById('book3d-depth');
+      if (mid3d && snap.mid_price != null) mid3d.textContent = '$' + Number(snap.mid_price).toFixed(4);
+      if (spr3d && snap.spread != null) spr3d.textContent = 'spread $' + Number(snap.spread).toFixed(4);
+      if (dep3d) {
+        const bv = snap.total_bid_volume || 0;
+        const av = snap.total_ask_volume || 0;
+        dep3d.textContent = 'bid ' + bv.toLocaleString() + ' / ask ' + av.toLocaleString();
+      }
+
+      // Find max volume for normalization
+      let maxVol = 1;
+      bookHistory.forEach(s => {
+        (s.bids || []).forEach(b => { if (b[1] > maxVol) maxVol = b[1]; });
+        (s.asks || []).forEach(a => { if (a[1] > maxVol) maxVol = a[1]; });
+      });
+
+      const dummy = new THREE.Object3D();
+      const color = new THREE.Color();
+      const bidColorBase = new THREE.Color(0x22c55e);
+      const bidColorBright = new THREE.Color(0x86efac);
+      const askColorBase = new THREE.Color(0xef4444);
+      const askColorBright = new THREE.Color(0xfca5a5);
+
+      let idx = 0;
+      for (let t = 0; t < bookHistory.length; t++) {
+        const s = bookHistory[t];
+        const bids = (s.bids || []).slice(0, 5);
+        const asks = (s.asks || []).slice(0, 5);
+
+        // Time position: newest at front (z=0), oldest recedes
+        const z = -(bookHistory.length - 1 - t) * TIME_GAP;
+        // Opacity/brightness fades for older entries
+        const age = t / Math.max(1, bookHistory.length - 1); // 0=oldest, 1=newest
+
+        // Bids: left of center (negative X)
+        for (let lvl = 0; lvl < 5; lvl++) {
+          if (lvl < bids.length) {
+            const vol = bids[lvl][1];
+            const norm = vol / maxVol;
+            const h = Math.max(0.15, norm * 18);
+            const x = -(lvl + 1) * BAR_GAP;
+
+            dummy.position.set(x, h / 2, z);
+            dummy.scale.set(1.1, h, 0.65);
+            dummy.updateMatrix();
+            bookMesh.setMatrixAt(idx, dummy.matrix);
+
+            color.copy(bidColorBase).lerp(bidColorBright, norm * 0.7 * age);
+            bookMesh.setColorAt(idx, color);
+          } else {
+            dummy.position.set(0, -100, 0);
+            dummy.scale.set(0, 0, 0);
+            dummy.updateMatrix();
+            bookMesh.setMatrixAt(idx, dummy.matrix);
+          }
+          idx++;
+        }
+
+        // Asks: right of center (positive X)
+        for (let lvl = 0; lvl < 5; lvl++) {
+          if (lvl < asks.length) {
+            const vol = asks[lvl][1];
+            const norm = vol / maxVol;
+            const h = Math.max(0.15, norm * 18);
+            const x = (lvl + 1) * BAR_GAP;
+
+            dummy.position.set(x, h / 2, z);
+            dummy.scale.set(1.1, h, 0.65);
+            dummy.updateMatrix();
+            bookMesh.setMatrixAt(idx, dummy.matrix);
+
+            color.copy(askColorBase).lerp(askColorBright, norm * 0.7 * age);
+            bookMesh.setColorAt(idx, color);
+          } else {
+            dummy.position.set(0, -100, 0);
+            dummy.scale.set(0, 0, 0);
+            dummy.updateMatrix();
+            bookMesh.setMatrixAt(idx, dummy.matrix);
+          }
+          idx++;
+        }
+      }
+
+      // Hide remaining unused instances
+      for (; idx < BOOK_HISTORY_LEN * MAX_LEVELS; idx++) {
         dummy.position.set(0, -100, 0);
         dummy.scale.set(0, 0, 0);
         dummy.updateMatrix();
         bookMesh.setMatrixAt(idx, dummy.matrix);
       }
-      idx++;
+
+      bookMesh.instanceMatrix.needsUpdate = true;
+      if (bookMesh.instanceColor) bookMesh.instanceColor.needsUpdate = true;
     }
 
-    // Asks: right of center (positive X)
-    for (let lvl = 0; lvl < 5; lvl++) {
-      if (lvl < asks.length) {
-        const vol = asks[lvl][1];
-        const norm = vol / maxVol;
-        const h = Math.max(0.15, norm * 18);
-        const x = (lvl + 1) * BAR_GAP;
 
-        dummy.position.set(x, h / 2, z);
-        dummy.scale.set(1.1, h, 0.65);
-        dummy.updateMatrix();
-        bookMesh.setMatrixAt(idx, dummy.matrix);
-
-        color.copy(askColorBase).lerp(askColorBright, norm * 0.7 * age);
-        bookMesh.setColorAt(idx, color);
-      } else {
-        dummy.position.set(0, -100, 0);
-        dummy.scale.set(0, 0, 0);
-        dummy.updateMatrix();
-        bookMesh.setMatrixAt(idx, dummy.matrix);
-      }
-      idx++;
-    }
-  }
-
-  // Hide remaining unused instances
-  for (; idx < BOOK_HISTORY_LEN * MAX_LEVELS; idx++) {
-    dummy.position.set(0, -100, 0);
-    dummy.scale.set(0, 0, 0);
-    dummy.updateMatrix();
-    bookMesh.setMatrixAt(idx, dummy.matrix);
-  }
-
-  bookMesh.instanceMatrix.needsUpdate = true;
-  if (bookMesh.instanceColor) bookMesh.instanceColor.needsUpdate = true;
-}
-
-
-// ============================================================
-// Bootstrap
-// ============================================================
-initMainChart();
-initPfChart();
-init3DBook();
-connect();
-</script>
+    // ============================================================
+    // Bootstrap
+    // ============================================================
+    initMainChart();
+    initPfChart();
+    init3DBook();
+    connect();
+  </script>
 </body>
+
 </html>
