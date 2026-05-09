@@ -12,7 +12,26 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <style>
-    :root {
+    /* ---- Dark theme (default — matches 3D Book cyberpunk aesthetic) ---- */
+    :root, [data-theme="dark"] {
+      --bg: #060614;
+      --panel: #0d0d24;
+      --border: #1e293b;
+      --accent: #7dd3fc;
+      --green: #4ade80;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --muted: #94a3b8;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      --glow-green: rgba(74, 222, 128, 0.15);
+      --glow-red: rgba(248, 113, 113, 0.15);
+      --glow-accent: rgba(125, 211, 252, 0.1);
+    }
+
+    /* ---- Light theme ---- */
+    [data-theme="light"] {
       --bg: #f0f2f5;
       --panel: #ffffff;
       --border: #d0d5e0;
@@ -23,7 +42,9 @@
       --muted: #64748b;
       --text: #1e293b;
       --text-dim: #475569;
-      --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      --glow-green: transparent;
+      --glow-red: transparent;
+      --glow-accent: transparent;
     }
 
     * {
@@ -32,12 +53,21 @@
       padding: 0;
     }
 
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
     body {
       background: var(--bg);
       color: var(--text);
       font-family: var(--mono);
       font-size: 13px;
       line-height: 1.5;
+      transition: background 0.3s, color 0.3s;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
 
     /* ---- Header ---- */
@@ -60,15 +90,35 @@
       padding: 3px 10px;
       border-radius: 12px;
       font-size: 11px;
-      background: #dcfce7;
+      background: var(--glow-green);
       color: var(--green);
       border: 1px solid var(--green);
     }
 
     #status-pill.disconnected {
-      background: #fee2e2;
+      background: var(--glow-red);
       color: var(--red);
       border-color: var(--red);
+    }
+
+    /* ---- Theme toggle ---- */
+    .theme-toggle {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
     /* ---- Main layout ---- */
@@ -77,20 +127,23 @@
       flex-direction: column;
       gap: 12px;
       padding: 14px;
+      flex: 1;
     }
 
     .panel {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 10px;
       padding: 12px 14px;
+      transition: background 0.3s, border-color 0.3s;
+      box-shadow: 0 0 20px var(--glow-accent);
     }
 
     .panel>h2 {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      color: var(--muted);
+      color: var(--accent);
       margin-bottom: 10px;
       border-bottom: 1px solid var(--border);
       padding-bottom: 6px;
@@ -238,7 +291,7 @@
       display: flex;
       justify-content: space-between;
       padding: 2px 0;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--border);
     }
 
     .bid .price {
@@ -314,19 +367,19 @@
     }
 
     .sig-BUY {
-      background: #dcfce7;
+      background: var(--glow-green);
       color: var(--green);
       border: 2px solid var(--green);
     }
 
     .sig-SELL {
-      background: #fee2e2;
+      background: var(--glow-red);
       color: var(--red);
       border: 2px solid var(--red);
     }
 
     .sig-HOLD {
-      background: #f1f5f9;
+      background: var(--panel);
       color: var(--muted);
       border: 2px solid var(--border);
     }
@@ -429,10 +482,11 @@
 
     /* ---- Log ---- */
     #log-box {
-      background: #f8fafc;
+      background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 4px;
-      height: 160px;
+      flex: 1;
+      min-height: 80px;
       overflow-y: auto;
       padding: 8px 10px;
       font-size: 11px;
@@ -441,11 +495,17 @@
 
     #log-box .log-line {
       padding: 1px 0;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--border);
     }
 
     #log-box .log-line:last-child {
       color: var(--text);
+    }
+
+    /* ---- Hide TradingView watermark ---- */
+    [data-theme="dark"] .tv-lightweight-charts a[href*="tradingview"],
+    .tv-lightweight-charts a[href*="tradingview"] {
+      display: none !important;
     }
 
     /* ---- Divider inside sig/pos/risk col ---- */
@@ -557,25 +617,25 @@
     .suggestion-pill.good {
       border-color: var(--green);
       color: var(--green);
-      background: #dcfce7;
+      background: var(--glow-green);
     }
 
     .suggestion-pill.warn {
       border-color: var(--yellow);
       color: var(--yellow);
-      background: #fef3c7;
+      background: rgba(251, 191, 36, 0.1);
     }
 
     .suggestion-pill.bad {
       border-color: var(--red);
       color: var(--red);
-      background: #fee2e2;
+      background: var(--glow-red);
     }
 
     .suggestion-pill.neutral {
       border-color: var(--accent);
       color: var(--accent);
-      background: #dbeafe;
+      background: var(--glow-accent);
     }
 
     /* ---- Investment Forecast ---- */
@@ -622,6 +682,8 @@
       grid-template-columns: 1fr 1fr 1fr;
       gap: 10px;
       margin-top: 4px;
+      flex: 1;
+      min-height: 0;
     }
 
     .scenario-card {
@@ -630,6 +692,9 @@
       border-radius: 6px;
       padding: 12px;
       text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     .scenario-card.pess {
@@ -740,7 +805,7 @@
 
     .inv-table td {
       padding: 5px 8px;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--border);
       text-align: right;
     }
 
@@ -778,6 +843,7 @@
       padding: 0 14px;
       background: var(--panel);
       border-bottom: 1px solid var(--border);
+      transition: background 0.3s;
     }
 
     .tab-btn {
@@ -804,14 +870,55 @@
       border-bottom-color: var(--accent);
     }
 
-    /* Page sections — hidden by default, display:contents when active so
-     panels flow into main's flex layout as if no wrapper exists */
+    /* Page sections -- hidden by default, flex column when active
+       so panels expand to fill the available vertical space */
     .page-section {
       display: none;
     }
 
     .page-section.visible {
-      display: contents;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .page-section.visible > .panel:last-child {
+      flex: 1;
+    }
+
+    /* ---- Resize handle ---- */
+    .resize-handle {
+      height: 6px;
+      cursor: ns-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 5;
+      margin: -3px 0;
+    }
+
+    .resize-handle::before {
+      content: '';
+      width: 48px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      transition: background 0.2s, width 0.2s;
+    }
+
+    .resize-handle:hover::before,
+    .resize-handle.active::before {
+      background: var(--accent);
+      width: 72px;
+    }
+
+    /* Resizable panels */
+    .panel.resizable {
+      overflow: auto;
+      min-height: 80px;
     }
 
     @media (max-width: 900px) {
@@ -855,10 +962,15 @@
 <body>
 
   <header>
-    <h1>⚡ KAIROS X</h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+        <span id="theme-icon">LIGHT</span>
+      </button>
+    </div>
+    <h1>KAIROS X</h1>
     <div style="display:flex;align-items:center;gap:12px;">
       <span id="clock" style="color:var(--text-dim);font-size:11px;"></span>
-      <span id="status-pill" class="disconnected">● DISCONNECTED</span>
+      <span id="status-pill" class="disconnected">DISCONNECTED</span>
     </div>
   </header>
 
@@ -875,7 +987,7 @@
     <div class="page-section visible" data-page="overview">
 
       <!-- Portfolio -->
-      <div class="panel" id="portfolio">
+      <div class="panel resizable" id="portfolio" style="flex: 1; display: flex; flex-direction: column;">
         <h2>Portfolio</h2>
         <div class="portfolio-grid">
           <div class="kpi">
@@ -903,11 +1015,14 @@
             <div class="value neu" id="p-cap">—</div>
           </div>
         </div>
-        <div id="pf-chart-container"></div>
+        <div id="pf-chart-container" style="flex: 1; min-height: 40px;"></div>
       </div>
 
+      <!-- Resize handle -->
+      <div class="resize-handle" id="overview-resize" title="Drag to resize"></div>
+
       <!-- Target Calculator -->
-      <div class="panel" id="target-panel">
+      <div class="panel resizable" id="target-panel" style="flex: 1;">
         <h2>Target Calculator</h2>
         <div class="target-calc-grid">
           <div class="target-input-group">
@@ -939,7 +1054,7 @@
     <div class="page-section" data-page="invest">
 
       <!-- Investment Forecast -->
-      <div class="panel" id="forecast-panel">
+      <div class="panel resizable" id="forecast-panel" style="flex: 1; display: flex; flex-direction: column;">
         <h2>Investment Forecast</h2>
         <div class="forecast-input-row">
           <span style="font-size:11px;color:var(--text-dim);">Amount ($)</span>
@@ -978,8 +1093,11 @@
           on the engine's live equity growth rate.</div>
       </div>
 
+      <!-- Resize handle -->
+      <div class="resize-handle" id="invest-resize" title="Drag to resize"></div>
+
       <!-- Live Portfolio Simulator -->
-      <div class="panel" id="simulator-panel">
+      <div class="panel resizable" id="simulator-panel" style="flex: 1;">
         <h2>Live Portfolio Simulator</h2>
         <div class="sim-form-row">
           <span style="font-size:11px;color:var(--text-dim);">Invest ($)</span>
@@ -1089,7 +1207,15 @@
               Stats</div>
             <div id="book3d-mid" style="font-size:16px; font-weight:700; color:#e0f2fe; margin:2px 0;">—</div>
             <div id="book3d-spread" style="font-size:11px; color:rgba(255,255,255,0.5);">spread —</div>
-            <div id="book3d-depth" style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:2px;">depth —</div>
+            <div id="book3d-depth" style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:2px;">depth --</div>
+          </div>
+        </div>
+        <!-- Bottom HUD: Axis explanation -->
+        <div style="position:absolute; bottom:0; left:0; right:0; padding:10px 18px; pointer-events:none; z-index:10;">
+          <div style="background:rgba(10,10,26,0.85); backdrop-filter:blur(10px); border:1px solid rgba(100,200,255,0.1); padding:8px 14px; border-radius:8px; display:flex; gap:24px; justify-content:center; font-size:10px; color:rgba(255,255,255,0.5); letter-spacing:0.5px; text-transform:uppercase;">
+            <span>X-Axis: Price Levels (Bids left, Asks right)</span>
+            <span>Y-Axis: Volume (bar height = order size)</span>
+            <span>Z-Axis: Time (front = newest, back = oldest)</span>
           </div>
         </div>
       </div>
@@ -1104,7 +1230,7 @@
       </div>
 
       <!-- Engine log -->
-      <div class="panel" id="log-panel">
+      <div class="panel" id="log-panel" style="display: flex; flex-direction: column;">
         <h2>Engine Log</h2>
         <div id="log-box"></div>
       </div>
@@ -1145,16 +1271,65 @@
     let pfChart = null, pfEquitySeries = null;
     let pfLastTime = 0;
 
-    const C = {
-      bg: '#f0f2f5',
-      panel: '#ffffff',
-      border: '#e2e8f0',
-      text: '#475569',
-      green: '#16a34a',
-      red: '#dc2626',
-      accent: '#2563eb',
-      yellow: '#d97706',
-    };
+    function getThemeColors() {
+      const s = getComputedStyle(document.documentElement);
+      return {
+        bg: s.getPropertyValue('--bg').trim(),
+        panel: s.getPropertyValue('--panel').trim(),
+        border: s.getPropertyValue('--border').trim(),
+        text: s.getPropertyValue('--text-dim').trim(),
+        green: s.getPropertyValue('--green').trim(),
+        red: s.getPropertyValue('--red').trim(),
+        accent: s.getPropertyValue('--accent').trim(),
+        yellow: s.getPropertyValue('--yellow').trim(),
+      };
+    }
+    let C = getThemeColors();
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') !== 'light';
+      html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('kairos-theme', isDark ? 'light' : 'dark');
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      if (isDark) { icon.textContent = 'DARK'; }
+      else { icon.textContent = 'LIGHT'; }
+      C = getThemeColors();
+      applyThemeToCharts();
+    }
+
+    // Restore saved theme
+    (function() {
+      const saved = localStorage.getItem('kairos-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      if (saved === 'light') {
+        const icon = document.getElementById('theme-icon');
+        const label = document.getElementById('theme-label');
+        if (icon) icon.textContent = 'DARK';
+      }
+      C = getThemeColors();
+    })();
+
+    function applyThemeToCharts() {
+      if (mainChart) {
+        mainChart.applyOptions({
+          layout: { background: { color: C.bg }, textColor: C.text },
+          grid: { vertLines: { color: C.border }, horzLines: { color: C.border } },
+          rightPriceScale: { borderColor: C.border },
+          timeScale: { borderColor: C.border },
+        });
+      }
+      if (pfChart) {
+        pfChart.applyOptions({
+          layout: { background: { color: C.panel }, textColor: C.text },
+          grid: { vertLines: { color: 'transparent' }, horzLines: { color: C.border } },
+          rightPriceScale: { borderColor: C.border },
+          timeScale: { borderColor: C.border },
+        });
+        if (pfEquitySeries) pfEquitySeries.applyOptions({ lineColor: C.accent });
+      }
+    }
 
     function initMainChart() {
       const el = document.getElementById('main-chart-container');
@@ -1219,8 +1394,12 @@
       });
 
       new ResizeObserver(() => {
-        if (pfChart && el.clientWidth > 0)
+        if (pfChart && el.clientWidth > 0) {
           pfChart.applyOptions({ width: el.clientWidth });
+        }
+        if (pfChart && el.clientHeight > 0) {
+          pfChart.applyOptions({ height: el.clientHeight });
+        }
       }).observe(el);
     }
 
@@ -1413,16 +1592,18 @@
       if (!el) return;
       const dir = sig?.direction || 'HOLD';
       const conf = sig?.confidence ?? 0;
+      const score = sig?.score ?? 0;
       const pct = Math.round(Math.max(0, Math.min(1, conf)) * 100);
       const confColor = conf >= 0.7 ? C.green : conf >= 0.4 ? C.yellow : C.red;
+      const reason = sig?.reason || (dir === 'HOLD' ? 'No actionable signal detected' : '');
       el.innerHTML = `
     <div class="signal-box">
       <div class="sig-badge sig-${dir}">${dir}</div>
-      <div class="sig-conf">conf: ${fmt(conf, 2)}&nbsp;&nbsp;score: ${fmt(sig?.score, 3)}</div>
+      <div class="sig-conf">conf: ${fmt(conf, 2)}  |  score: ${fmt(score, 3)}</div>
       <div class="conf-track">
         <div class="conf-fill" style="width:${pct}%;background:${confColor};"></div>
       </div>
-      <div class="sig-reason">${sig?.reason || ''}</div>
+      <div class="sig-reason">${reason}</div>
     </div>`;
     }
 
@@ -1448,8 +1629,8 @@
       const el = $('risk-content');
       if (!el || !risk) return;
       el.innerHTML = risk.halted
-        ? `<div class="risk-halt">⛔ HALTED</div><div class="risk-reason">${risk.halt_reason}</div>`
-        : `<div class="risk-ok">✓ OK &nbsp; dd=${pctStr(risk.drawdown_pct)}</div>`;
+        ? `<div class="risk-halt">HALTED</div><div class="risk-reason">${risk.halt_reason}</div>`
+        : `<div class="risk-ok">OK &nbsp; dd=${pctStr(risk.drawdown_pct)}</div>`;
     }
 
     function renderPortfolio(pf) {
@@ -1493,11 +1674,11 @@
       ws = new WebSocket(`${proto}://${location.host}/ws`);
 
       ws.onopen = () => {
-        $('status-pill').textContent = '● LIVE';
+        $('status-pill').textContent = 'LIVE';
         $('status-pill').className = '';
       };
       ws.onclose = () => {
-        $('status-pill').textContent = '● DISCONNECTED';
+        $('status-pill').textContent = 'DISCONNECTED';
         $('status-pill').className = 'disconnected';
         setTimeout(connect, 2000);
       };
@@ -1742,20 +1923,39 @@
       const slope = equitySlope();   // $/sec
       const currentEq = equityHistory.length ? equityHistory[equityHistory.length - 1].equity : null;
 
-      if (slope === null || currentEq === null || currentEq <= 0) {
-        $('fc-note').textContent = 'Gathering rate data — please wait a few seconds and try again.';
+      if (currentEq === null || currentEq <= 0) {
+        $('fc-note').textContent = 'Waiting for engine data -- please wait a moment and try again.';
         return;
       }
 
+      // If real slope is negligible (engine idle), use simulated annual returns
+      const realSlope = slope !== null ? slope : 0;
+      const isIdle = Math.abs(realSlope) < 0.001;
+
       const projSecs = months * 30.44 * 86400;
-      [
-        { id: 'pess', mult: 0.3 },
-        { id: 'base', mult: 1.0 },
-        { id: 'opti', mult: 2.5 },
-      ].forEach(({ id, mult }) => {
-        const projEq = currentEq + slope * mult * projSecs;
-        const ratio = Math.max(0, projEq) / currentEq;
-        const projAmt = amount * ratio;
+
+      // Scenario annual return rates when engine is idle
+      const scenarioRates = {
+        pess: { mult: 0.3, annualReturn: -0.05 },   // -5% annual
+        base: { mult: 1.0, annualReturn: 0.08 },     // +8% annual
+        opti: { mult: 2.5, annualReturn: 0.25 },     // +25% annual
+      };
+
+      ['pess', 'base', 'opti'].forEach(id => {
+        const cfg = scenarioRates[id];
+        let projAmt, ratio;
+
+        if (isIdle) {
+          // Use compound growth model
+          const years = months / 12;
+          ratio = Math.pow(1 + cfg.annualReturn, years);
+          projAmt = amount * ratio;
+        } else {
+          const projEq = currentEq + realSlope * cfg.mult * projSecs;
+          ratio = Math.max(0, projEq) / currentEq;
+          projAmt = amount * ratio;
+        }
+
         const roi = projAmt - amount;
         const roiPct = (ratio - 1) * 100;
 
@@ -1767,11 +1967,18 @@
         roiEl.style.color = roi >= 0 ? C.green : C.red;
       });
 
-      const perMin = slope * 60;
-      $('fc-note').textContent =
-        'Based on current growth rate: ' + (perMin >= 0 ? '+' : '') + fmtK(perMin) + '/min  ·  ' +
-        'projecting ' + months + ' month' + (months !== 1 ? 's' : '') + ' forward  ·  ' +
-        'not financial advice — simulated engine performance only';
+      if (isIdle) {
+        $('fc-note').textContent =
+          'Engine growth rate is minimal -- using simulated market return assumptions: ' +
+          'Pessimistic -5%/yr, Base +8%/yr, Optimistic +25%/yr  |  ' +
+          months + ' month' + (months !== 1 ? 's' : '') + ' projection  |  Not financial advice.';
+      } else {
+        const perMin = realSlope * 60;
+        $('fc-note').textContent =
+          'Based on live growth rate: ' + (perMin >= 0 ? '+' : '') + fmtK(perMin) + '/min  |  ' +
+          'projecting ' + months + ' month' + (months !== 1 ? 's' : '') + ' forward  |  ' +
+          'Not financial advice -- simulated engine performance only.';
+      }
     }
 
     // ============================================================
@@ -1801,7 +2008,7 @@
       const wrap = $('inv-table-wrap');
       if (!wrap) return;
       if (!invs || invs.length === 0) {
-        wrap.innerHTML = '<div id="inv-empty">— no active investments — enter an amount above to simulate —</div>';
+        wrap.innerHTML = '<div id="inv-empty">No active investments. Enter an amount above and click INVEST NOW to start tracking.</div>';
         return;
       }
       const now = Date.now() / 1000;
@@ -1872,12 +2079,12 @@
     // ============================================================
     // 3D Order Book Visualization — Cyberpunk Edition
     // ============================================================
-    let scene, camera, renderer, bookMesh, orbitControls, gridFloor;
-    let bidGlowMesh, askGlowMesh;
-    const BOOK_HISTORY_LEN = 60;
-    const MAX_LEVELS = 10; // 5 bids + 5 asks
+    let scene, camera, renderer, orbitControls, gridFloor;
+    let bidAreaMesh, askAreaMesh, bidTopLine, askTopLine;
+    const BOOK_HISTORY_LEN = 200; // Increased resolution for smoother flow
+    const MAX_LEVELS = 2; // 1 bid sum + 1 ask sum
     const BAR_GAP = 1.4;
-    const TIME_GAP = 1.0;
+    const TIME_GAP = 0.3; // Tighter gap so 200 points = 60 units deep
     let autoRotate = true;
 
     function init3DBook() {
@@ -1887,14 +2094,14 @@
       const width = container.clientWidth || window.innerWidth || 800;
       const height = container.clientHeight || 600;
 
-      // Scene — deep dark blue with fog
+      // Scene — deep dark slate with subtle fog
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x060614);
-      scene.fog = new THREE.FogExp2(0x060614, 0.012);
+      scene.background = new THREE.Color(0x0f172a);
+      scene.fog = new THREE.FogExp2(0x0f172a, 0.008);
 
       // Camera
       camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 500);
-      camera.position.set(18, 22, 40);
+      camera.position.set(16, 14, 25); // Zoomed in closer and lower
       camera.lookAt(0, 3, 0);
 
       // Renderer
@@ -1911,12 +2118,12 @@
       orbitControls.enableDamping = true;
       orbitControls.dampingFactor = 0.08;
       orbitControls.enablePan = true;
-      orbitControls.minDistance = 10;
-      orbitControls.maxDistance = 120;
+      orbitControls.minDistance = 5;
+      orbitControls.maxDistance = 80;
       orbitControls.maxPolarAngle = Math.PI / 2.1;
-      orbitControls.target.set(0, 3, -5);
+      orbitControls.target.set(0, 3, -15); // Look further down the Z-axis of the plot
       orbitControls.autoRotate = true;
-      orbitControls.autoRotateSpeed = 0.6;
+      orbitControls.autoRotateSpeed = 0.2;
 
       // Stop auto-rotate on user interaction
       renderer.domElement.addEventListener('pointerdown', () => {
@@ -1925,43 +2132,44 @@
       });
 
       // Lighting — dramatic multi-source
-      const ambientLight = new THREE.AmbientLight(0x1a1a3e, 0.5);
+      const ambientLight = new THREE.AmbientLight(0x334155, 0.6);
       scene.add(ambientLight);
 
-      const keyLight = new THREE.DirectionalLight(0x7dd3fc, 0.8);
+      const keyLight = new THREE.DirectionalLight(0xf8fafc, 0.6);
       keyLight.position.set(15, 30, 20);
       keyLight.castShadow = true;
       keyLight.shadow.mapSize.width = 1024;
       keyLight.shadow.mapSize.height = 1024;
       scene.add(keyLight);
 
-      const fillLight = new THREE.DirectionalLight(0x818cf8, 0.3);
+      const fillLight = new THREE.DirectionalLight(0x94a3b8, 0.4);
       fillLight.position.set(-10, 15, -10);
       scene.add(fillLight);
 
       // Neon point lights for glow
-      const bidGlow = new THREE.PointLight(0x22c55e, 1.2, 50);
+      const bidGlow = new THREE.PointLight(0x22c55e, 0.8, 50);
       bidGlow.position.set(-5, 10, 0);
       scene.add(bidGlow);
 
-      const askGlow = new THREE.PointLight(0xef4444, 1.2, 50);
+      const askGlow = new THREE.PointLight(0xef4444, 0.8, 50);
       askGlow.position.set(5, 10, 0);
       scene.add(askGlow);
 
       // Ground grid
-      const gridHelper = new THREE.GridHelper(100, 40, 0x1e293b, 0x0f172a);
-      gridHelper.position.y = -0.01;
+      const gridHelper = new THREE.GridHelper(80, 40, 0x1e293b, 0x0f172a);
+      // Removed scale to keep grid squares perfect, 80x80 fits nicely
+      gridHelper.position.set(0, -0.01, -30);
       scene.add(gridHelper);
 
       // Reflective ground plane
-      const groundGeo = new THREE.PlaneGeometry(100, 100);
+      const groundGeo = new THREE.PlaneGeometry(80, 80);
       const groundMat = new THREE.MeshPhongMaterial({
-        color: 0x080820, specular: 0x222244, shininess: 80,
-        transparent: true, opacity: 0.7
+        color: 0x0f172a, specular: 0x1e293b, shininess: 20,
+        transparent: true, opacity: 0.9
       });
       gridFloor = new THREE.Mesh(groundGeo, groundMat);
       gridFloor.rotation.x = -Math.PI / 2;
-      gridFloor.position.y = -0.02;
+      gridFloor.position.set(0, -0.02, -30);
       gridFloor.receiveShadow = true;
       scene.add(gridFloor);
 
@@ -1972,30 +2180,128 @@
       axisLine.position.set(0, 0.03, -(BOOK_HISTORY_LEN * TIME_GAP) / 2);
       scene.add(axisLine);
 
-      // InstancedMesh for order book bars
-      const barGeo = new THREE.BoxGeometry(1, 1, 0.7);
-      const barMat = new THREE.MeshPhongMaterial({
-        color: 0xffffff, transparent: true, opacity: 0.92,
-        shininess: 120, specular: 0x444466
-      });
-      bookMesh = new THREE.InstancedMesh(barGeo, barMat, BOOK_HISTORY_LEN * MAX_LEVELS);
-      bookMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      bookMesh.castShadow = true;
-      bookMesh.receiveShadow = true;
+      // ---- Axis Lines ----
+      const xAxisMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+      const yAxisMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+      const zAxisMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
 
-      // Initialize all instances as hidden
-      const dummy = new THREE.Object3D();
-      const defColor = new THREE.Color(0x000000);
-      dummy.position.set(0, -100, 0);
-      dummy.scale.set(0, 0, 0);
-      dummy.updateMatrix();
-      for (let i = 0; i < BOOK_HISTORY_LEN * MAX_LEVELS; i++) {
-        bookMesh.setMatrixAt(i, dummy.matrix);
-        bookMesh.setColorAt(i, defColor);
+      // X Axis (Price Levels) - runs left to right
+      const xAxisGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-12, 0.05, 2),
+        new THREE.Vector3(12, 0.05, 2)
+      ]);
+      const xAxisLine = new THREE.Line(xAxisGeo, xAxisMat);
+      scene.add(xAxisLine);
+
+      // Y Axis (Volume) - runs up
+      const yAxisGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-12, 0.05, 2),
+        new THREE.Vector3(-12, 18, 2)
+      ]);
+      const yAxisLine = new THREE.Line(yAxisGeo, yAxisMat);
+      scene.add(yAxisLine);
+
+      // Z Axis (Time) - runs back
+      const zAxisGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-12, 0.05, 2),
+        new THREE.Vector3(-12, 0.05, -60)
+      ]);
+      const zAxisLine = new THREE.Line(zAxisGeo, zAxisMat);
+      scene.add(zAxisLine);
+
+      // ---- Axis labels (Canvas-based text sprites) ----
+      function makeTextSprite(text, opts = {}) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const fontSize = opts.fontSize || 28;
+        ctx.font = `bold ${fontSize}px 'JetBrains Mono', monospace`;
+        const metrics = ctx.measureText(text);
+        canvas.width = metrics.width + 20;
+        canvas.height = fontSize + 16;
+        ctx.font = `bold ${fontSize}px 'JetBrains Mono', monospace`;
+        ctx.fillStyle = opts.color || 'rgba(125, 211, 252, 0.85)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.minFilter = THREE.LinearFilter;
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+        const sprite = new THREE.Sprite(mat);
+        const aspect = canvas.width / canvas.height;
+        const scale = opts.scale || 3;
+        sprite.scale.set(scale * aspect, scale, 1);
+        return sprite;
       }
-      bookMesh.instanceMatrix.needsUpdate = true;
-      if (bookMesh.instanceColor) bookMesh.instanceColor.needsUpdate = true;
-      scene.add(bookMesh);
+
+      // Bid side label
+      const bidLabel = makeTextSprite('BIDS', { color: 'rgba(74, 222, 128, 0.9)', scale: 2.5 });
+      bidLabel.position.set(-6, 0.5, 4); // Moved further left and forward
+      scene.add(bidLabel);
+
+      // Ask side label
+      const askLabel = makeTextSprite('ASKS', { color: 'rgba(248, 113, 113, 0.9)', scale: 2.5 });
+      askLabel.position.set(6, 0.5, 4); // Moved further right and forward
+      scene.add(askLabel);
+
+      // Volume axis label (vertical)
+      const volLabel = makeTextSprite('VOLUME', { color: 'rgba(125, 211, 252, 0.7)', scale: 2 });
+      volLabel.position.set(-13, 10, 2); // Positioned next to Y axis line
+      scene.add(volLabel);
+
+      // Time axis label
+      const timeLabel = makeTextSprite('TIME', { color: 'rgba(125, 211, 252, 0.7)', scale: 2 });
+      timeLabel.position.set(-13, 0.5, -30); // Positioned next to Z axis line
+      scene.add(timeLabel);
+
+      // Price levels label
+      const priceLabel = makeTextSprite('PRICE LEVELS', { color: 'rgba(125, 211, 252, 0.7)', scale: 1.8 });
+      priceLabel.position.set(0, 0.5, 6); // Moved further forward
+      scene.add(priceLabel);
+
+      // Mid-price marker label
+      const midLabel = makeTextSprite('MID PRICE', { color: 'rgba(125, 211, 252, 0.5)', scale: 1.5 });
+      midLabel.position.set(0, 2, 2); // Moved up and forward
+      scene.add(midLabel);
+
+      // Area Charts for Order Book (Groww-style mountain plots)
+      const maxPts = BOOK_HISTORY_LEN;
+      const areaIndices = [];
+      for (let i = 0; i < maxPts - 1; i++) {
+        const base = i * 2;
+        // Two triangles per segment
+        areaIndices.push(base, base + 1, base + 2); 
+        areaIndices.push(base + 1, base + 3, base + 2);
+      }
+
+      // Bids Area
+      const bidGeo = new THREE.BufferGeometry();
+      bidGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(maxPts * 2 * 3), 3));
+      bidGeo.setIndex(areaIndices);
+      const bidMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+      bidAreaMesh = new THREE.Mesh(bidGeo, bidMat);
+      scene.add(bidAreaMesh);
+
+      // Asks Area
+      const askGeo = new THREE.BufferGeometry();
+      askGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(maxPts * 2 * 3), 3));
+      askGeo.setIndex(areaIndices);
+      const askMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+      askAreaMesh = new THREE.Mesh(askGeo, askMat);
+      scene.add(askAreaMesh);
+
+      // Top Lines
+      const bidLineGeo = new THREE.BufferGeometry();
+      bidLineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(maxPts * 3), 3));
+      const bidLineMat = new THREE.LineBasicMaterial({ color: 0x86efac, linewidth: 2 });
+      bidTopLine = new THREE.Line(bidLineGeo, bidLineMat);
+      scene.add(bidTopLine);
+
+      const askLineGeo = new THREE.BufferGeometry();
+      askLineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(maxPts * 3), 3));
+      const askLineMat = new THREE.LineBasicMaterial({ color: 0xfca5a5, linewidth: 2 });
+      askTopLine = new THREE.Line(askLineGeo, askLineMat);
+      scene.add(askTopLine);
 
       // Resize
       const resizeObs = new ResizeObserver(() => {
@@ -2023,11 +2329,11 @@
     const bookHistory = [];
 
     function update3DBook(snap) {
-      if (!snap || !bookMesh) return;
+      if (!snap || !bidAreaMesh) return;
 
-      // Throttle to ~10 fps
+      // Throttle to ~20 fps for smooth, dynamic stock chart movement
       const now = Date.now();
-      if (update3DBook._last && (now - update3DBook._last < 100)) return;
+      if (update3DBook._last && (now - update3DBook._last < 50)) return;
       update3DBook._last = now;
 
       bookHistory.push(snap);
@@ -2048,87 +2354,68 @@
       // Find max volume for normalization
       let maxVol = 1;
       bookHistory.forEach(s => {
-        (s.bids || []).forEach(b => { if (b[1] > maxVol) maxVol = b[1]; });
-        (s.asks || []).forEach(a => { if (a[1] > maxVol) maxVol = a[1]; });
+        const bv = s.total_bid_volume || 0;
+        const av = s.total_ask_volume || 0;
+        if (bv > maxVol) maxVol = bv;
+        if (av > maxVol) maxVol = av;
       });
 
-      const dummy = new THREE.Object3D();
-      const color = new THREE.Color();
-      const bidColorBase = new THREE.Color(0x22c55e);
-      const bidColorBright = new THREE.Color(0x86efac);
-      const askColorBase = new THREE.Color(0xef4444);
-      const askColorBright = new THREE.Color(0xfca5a5);
+      const bidPosArray = bidAreaMesh.geometry.attributes.position.array;
+      const askPosArray = askAreaMesh.geometry.attributes.position.array;
+      const bidLineArray = bidTopLine.geometry.attributes.position.array;
+      const askLineArray = askTopLine.geometry.attributes.position.array;
 
-      let idx = 0;
-      for (let t = 0; t < bookHistory.length; t++) {
-        const s = bookHistory[t];
-        const bids = (s.bids || []).slice(0, 5);
-        const asks = (s.asks || []).slice(0, 5);
+      for (let i = 0; i < BOOK_HISTORY_LEN; i++) {
+        // i=0 is newest point (front), i=59 is oldest point (back)
+        const histIdx = bookHistory.length - 1 - i;
+        const s = histIdx >= 0 ? bookHistory[histIdx] : null;
+        
+        const bv = s ? (s.total_bid_volume || 0) : 0;
+        const av = s ? (s.total_ask_volume || 0) : 0;
+        
+        const normB = maxVol > 0 ? bv / maxVol : 0;
+        const normA = maxVol > 0 ? av / maxVol : 0;
 
-        // Time position: newest at front (z=0), oldest recedes
-        const z = -(bookHistory.length - 1 - t) * TIME_GAP;
-        // Opacity/brightness fades for older entries
-        const age = t / Math.max(1, bookHistory.length - 1); // 0=oldest, 1=newest
+        const hB = s ? Math.max(0.15, normB * 18) : 0;
+        const hA = s ? Math.max(0.15, normA * 18) : 0;
+        const z = -i * TIME_GAP;
 
-        // Bids: left of center (negative X)
-        for (let lvl = 0; lvl < 5; lvl++) {
-          if (lvl < bids.length) {
-            const vol = bids[lvl][1];
-            const norm = vol / maxVol;
-            const h = Math.max(0.15, norm * 18);
-            const x = -(lvl + 1) * BAR_GAP;
+        const baseIdx = i * 6; // 2 vertices * 3 coords
+        
+        // Bid Area: X = -3
+        // Bottom vertex
+        bidPosArray[baseIdx + 0] = -3;
+        bidPosArray[baseIdx + 1] = 0;
+        bidPosArray[baseIdx + 2] = z;
+        // Top vertex
+        bidPosArray[baseIdx + 3] = -3;
+        bidPosArray[baseIdx + 4] = hB;
+        bidPosArray[baseIdx + 5] = z;
 
-            dummy.position.set(x, h / 2, z);
-            dummy.scale.set(1.1, h, 0.65);
-            dummy.updateMatrix();
-            bookMesh.setMatrixAt(idx, dummy.matrix);
+        // Ask Area: X = 3
+        askPosArray[baseIdx + 0] = 3;
+        askPosArray[baseIdx + 1] = 0;
+        askPosArray[baseIdx + 2] = z;
+        // Top vertex
+        askPosArray[baseIdx + 3] = 3;
+        askPosArray[baseIdx + 4] = hA;
+        askPosArray[baseIdx + 5] = z;
 
-            color.copy(bidColorBase).lerp(bidColorBright, norm * 0.7 * age);
-            bookMesh.setColorAt(idx, color);
-          } else {
-            dummy.position.set(0, -100, 0);
-            dummy.scale.set(0, 0, 0);
-            dummy.updateMatrix();
-            bookMesh.setMatrixAt(idx, dummy.matrix);
-          }
-          idx++;
-        }
-
-        // Asks: right of center (positive X)
-        for (let lvl = 0; lvl < 5; lvl++) {
-          if (lvl < asks.length) {
-            const vol = asks[lvl][1];
-            const norm = vol / maxVol;
-            const h = Math.max(0.15, norm * 18);
-            const x = (lvl + 1) * BAR_GAP;
-
-            dummy.position.set(x, h / 2, z);
-            dummy.scale.set(1.1, h, 0.65);
-            dummy.updateMatrix();
-            bookMesh.setMatrixAt(idx, dummy.matrix);
-
-            color.copy(askColorBase).lerp(askColorBright, norm * 0.7 * age);
-            bookMesh.setColorAt(idx, color);
-          } else {
-            dummy.position.set(0, -100, 0);
-            dummy.scale.set(0, 0, 0);
-            dummy.updateMatrix();
-            bookMesh.setMatrixAt(idx, dummy.matrix);
-          }
-          idx++;
-        }
+        // Top lines
+        const lineIdx = i * 3;
+        bidLineArray[lineIdx + 0] = -3;
+        bidLineArray[lineIdx + 1] = hB;
+        bidLineArray[lineIdx + 2] = z;
+        
+        askLineArray[lineIdx + 0] = 3;
+        askLineArray[lineIdx + 1] = hA;
+        askLineArray[lineIdx + 2] = z;
       }
 
-      // Hide remaining unused instances
-      for (; idx < BOOK_HISTORY_LEN * MAX_LEVELS; idx++) {
-        dummy.position.set(0, -100, 0);
-        dummy.scale.set(0, 0, 0);
-        dummy.updateMatrix();
-        bookMesh.setMatrixAt(idx, dummy.matrix);
-      }
-
-      bookMesh.instanceMatrix.needsUpdate = true;
-      if (bookMesh.instanceColor) bookMesh.instanceColor.needsUpdate = true;
+      bidAreaMesh.geometry.attributes.position.needsUpdate = true;
+      askAreaMesh.geometry.attributes.position.needsUpdate = true;
+      bidTopLine.geometry.attributes.position.needsUpdate = true;
+      askTopLine.geometry.attributes.position.needsUpdate = true;
     }
 
 
@@ -2139,6 +2426,65 @@
     initPfChart();
     init3DBook();
     connect();
+
+    // Remove TradingView watermark links
+    setTimeout(() => {
+      document.querySelectorAll('a[href*="tradingview"]').forEach(a => a.style.display = 'none');
+    }, 500);
+    // Also observe for any dynamically added watermarks
+    new MutationObserver(() => {
+      document.querySelectorAll('a[href*="tradingview"]').forEach(a => a.style.display = 'none');
+    }).observe(document.body, { childList: true, subtree: true });
+
+    // Apply theme to charts after they're initialized
+    applyThemeToCharts();
+
+    // ============================================================
+    // Resizable panels (generic)
+    // ============================================================
+    function initResizable(handleId, topId, botId) {
+      const handle = document.getElementById(handleId);
+      const top = document.getElementById(topId);
+      const bot = document.getElementById(botId);
+      if (!handle || !top || !bot) return;
+
+      let dragging = false;
+      let startY = 0;
+      let startTopH = 0;
+      let startBotH = 0;
+
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        dragging = true;
+        startY = e.clientY;
+        startTopH = top.getBoundingClientRect().height;
+        startBotH = bot.getBoundingClientRect().height;
+        handle.classList.add('active');
+        document.body.style.cursor = 'ns-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const dy = e.clientY - startY;
+        const newTopH = Math.max(80, startTopH + dy);
+        const newBotH = Math.max(80, startBotH - dy);
+        const total = newTopH + newBotH;
+        top.style.flex = (newTopH / total).toFixed(4);
+        bot.style.flex = (newBotH / total).toFixed(4);
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        handle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      });
+    }
+
+    initResizable('overview-resize', 'portfolio', 'target-panel');
+    initResizable('invest-resize', 'forecast-panel', 'simulator-panel');
   </script>
 </body>
 
