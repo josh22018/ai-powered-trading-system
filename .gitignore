@@ -1,0 +1,31 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+bin/
+lib/
+share/
+Include/
+
+# Environment Variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Shared Memory (Kairos specific)
+kairos_shm_*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

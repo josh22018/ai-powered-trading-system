@@ -24,6 +24,7 @@ from agents.strategist.position import (
     open_position,
 )
 from agents.guardian.risk import MIN_CONFIDENCE
+from agents.execution.upstox_executor import UpstoxExecutor
 from shared.state import EngineState
 
 log = logging.getLogger(__name__)
@@ -52,6 +53,9 @@ class StrategistAgent:
         """
         self._state         = state
         self._poll_interval = poll_interval
+        
+        # Live Execution hook
+        self.live_executor = UpstoxExecutor()
 
     async def run(self) -> None:
         """Main async loop — runs until cancelled."""
@@ -97,14 +101,22 @@ class StrategistAgent:
 
                 # Stop-loss check
                 if pos and pos.unrealized_pnl < MAX_LOSS_PER_TRADE:
+                    side_closed = pos.side
                     pnl, summary = close_position(self._state, ticker, mid)
                     self._state.emit('strategist', f'STOP-LOSS {summary}')
+                    # Execute live opposite trade to close
+                    exec_side = "SELL" if side_closed == "LONG" else "BUY"
+                    self.live_executor.place_order(ticker, exec_side, quantity=1, price=mid)
                     continue
 
                 # Guardian halt — liquidate immediately
                 if halted and pos is not None:
+                    side_closed = pos.side
                     pnl, summary = close_position(self._state, ticker, mid)
                     self._state.emit('strategist', f'HALT-CLOSE {summary}')
+                    # Execute live opposite trade to close
+                    exec_side = "SELL" if side_closed == "LONG" else "BUY"
+                    self.live_executor.place_order(ticker, exec_side, quantity=1, price=mid)
                     continue
 
                 if halted:
@@ -123,8 +135,12 @@ class StrategistAgent:
                         (pos.side == 'SHORT' and direction == 'BUY')
                     )
                     if should_exit:
+                        side_closed = pos.side
                         pnl, summary = close_position(self._state, ticker, mid)
                         self._state.emit('strategist', f'EXIT {summary}')
+                        # Execute live opposite trade to close
+                        exec_side = "SELL" if side_closed == "LONG" else "BUY"
+                        self.live_executor.place_order(ticker, exec_side, quantity=1, price=mid)
                     continue
 
                 # ---- Entry logic ----
@@ -136,6 +152,7 @@ class StrategistAgent:
                             f'ENTER LONG  {ticker} @ ${mid:.2f}  '
                             f'conf={confidence:.2f}',
                         )
+                        self.live_executor.place_order(ticker, "BUY", quantity=1, price=mid)
                 elif direction == 'SELL':
                     new_pos = open_position(self._state, ticker, 'SHORT', mid)
                     if new_pos:
@@ -144,5 +161,6 @@ class StrategistAgent:
                             f'ENTER SHORT {ticker} @ ${mid:.2f}  '
                             f'conf={confidence:.2f}',
                         )
+                        self.live_executor.place_order(ticker, "SELL", quantity=1, price=mid)
 
         self._state.agent_ticks['strategist'] += 1
