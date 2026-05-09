@@ -69,6 +69,9 @@ class OracleAgent:
         """Evaluate indicators for all tickers and update signals."""
         async with self._state.lock_indicators:
             indicators = dict(self._state.indicators)
+        
+        async with self._state.lock_sentiment:
+            sentiment_map = dict(self._state.sentiment)
 
         if not indicators:
             return
@@ -76,7 +79,8 @@ class OracleAgent:
         new_signals: Dict[str, Signal] = {}
 
         for ticker, ind in indicators.items():
-            candidate = classify_signal(ticker, ind)
+            sent = sentiment_map.get(ticker, 0.0)
+            candidate = classify_signal(ticker, ind, sent)
 
             if candidate.direction == 'HOLD':
                 # Always accept HOLD immediately — clears pending

@@ -22,10 +22,15 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from shared.state import EngineState
 
 log = logging.getLogger(__name__)
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 
 def create_app(engine_state: EngineState) -> FastAPI:
@@ -58,6 +63,49 @@ def create_app(engine_state: EngineState) -> FastAPI:
     @app.get('/api/health')
     async def health() -> JSONResponse:
         """Liveness probe — returns 200 OK when server is up."""
+        return JSONResponse({'status': 'ok'})
+
+
+    @app.post('/api/auth/login')
+    async def login(req: LoginRequest) -> JSONResponse:
+        # Mock auth: Any username works
+        return JSONResponse({"status": "success", "user": req.username})
+
+    @app.get('/api/market/overview')
+    async def market_overview() -> JSONResponse:
+        # Mock data for the Groww-style homepage
+        return JSONResponse({
+            "indices": [
+                {"name": "NIFTY 50", "value": 22453.30, "change": 124.50, "pct": 0.56},
+                {"name": "SENSEX", "value": 73876.80, "change": 382.10, "pct": 0.52},
+                {"name": "BANK NIFTY", "value": 48115.50, "change": -84.20, "pct": -0.17}
+            ],
+            "gainers": [
+                {"ticker": "RELIANCE", "price": 2945.30, "change": 2.45, "sentiment": 0.85, "vol": "1.2M"},
+                {"ticker": "TCS", "price": 3812.10, "change": 1.85, "sentiment": 0.72, "vol": "840K"},
+                {"ticker": "INFY", "price": 1425.60, "change": 1.20, "sentiment": 0.65, "vol": "2.1M"},
+                {"ticker": "SBIN", "price": 820.45, "change": 3.10, "sentiment": 0.91, "vol": "4.5M"},
+                {"ticker": "BHARTIARTL", "price": 1280.30, "change": 2.15, "sentiment": 0.78, "vol": "1.1M"},
+                {"ticker": "ICICIBANK", "price": 1150.20, "change": 1.95, "sentiment": 0.82, "vol": "3.2M"}
+            ],
+            "losers": [
+                {"ticker": "HDFCBANK", "price": 1510.40, "change": -0.85, "sentiment": 0.42, "vol": "2.8M"},
+                {"ticker": "AXISBANK", "price": 1120.15, "change": -1.10, "sentiment": 0.35, "vol": "1.5M"},
+                {"ticker": "WIPRO", "price": 450.30, "change": -2.40, "sentiment": 0.28, "vol": "6.2M"},
+                {"ticker": "LT", "price": 3450.10, "change": -1.25, "sentiment": 0.48, "vol": "520K"}
+            ]
+        })
+
+    @app.get('/api/profile')
+    async def get_profile() -> JSONResponse:
+        return JSONResponse({
+            "username": "Karthik",
+            "email": "karthik@kairos.ai",
+            "plan": "Pro Alpha",
+            "joined": "2026-01-15",
+            "balance": 1000000.0,
+            "margin_used": 0.0
+        })
         return JSONResponse({'status': 'ok'})
 
     @app.get('/api/state')

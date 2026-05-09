@@ -1,22 +1,17 @@
 """
-Strategist agent — async coroutine that converts Oracle signals into
-virtual position actions (open / close / hold).
+Strategist agent — async coroutine that converts Oracle signals and 
+Reinforcement Learning (RL) inferences into position actions.
 
-Entry rules:
-  - BUY  signal, confidence ≥ MIN_CONFIDENCE → open LONG  (if no position)
-  - SELL signal, confidence ≥ MIN_CONFIDENCE → open SHORT (if no position)
-
-Exit rules:
-  - Existing LONG  + SELL signal              → close LONG
-  - Existing SHORT + BUY  signal              → close SHORT
-  - Guardian marks ticker halted              → close position immediately
-  - Position unrealized loss > MAX_LOSS_PER_TRADE → stop-loss close
+Neuro-Symbolic Architecture:
+  1. Neuro Layer (PPO/ONNX): Decides optimal Buy/Sell/Hold based on LOB state.
+  2. Symbolic Layer (Rules): Enforces stop-loss, emergency halts, and oracle exit confirmations.
 """
-
-from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import onnxruntime as ort
+import numpy as np
 
 from agents.strategist.position import (
     close_position,
@@ -30,35 +25,30 @@ from shared.state import EngineState
 log = logging.getLogger(__name__)
 
 # Stop-loss: close if unrealized loss exceeds this amount
-MAX_LOSS_PER_TRADE = -300.0   # -$300 per position
-
+MAX_LOSS_PER_TRADE = -300.0   # -₹300 per position
 
 class StrategistAgent:
-    """
-    Reads signals from EngineState and manages a virtual portfolio by
-    opening and closing positions via the position module helpers.
-    """
-
     def __init__(
         self,
         state: EngineState,
         poll_interval: float = 0.7,
     ) -> None:
-        """
-        Initialise the Strategist agent.
-
-        Args:
-            state:         Shared EngineState.
-            poll_interval: Seconds between strategy evaluations.
-        """
         self._state         = state
         self._poll_interval = poll_interval
         
         # Live Execution hook
         self.live_executor = UpstoxExecutor()
+        
+        # RL Model Hook (Neuro Layer)
+        onnx_path = "models/strategist.onnx"
+        if os.path.exists(onnx_path):
+            self._ort_session = ort.InferenceSession(onnx_path)
+            log.info(f"Strategist loaded ONNX model from {onnx_path}")
+        else:
+            self._ort_session = None
+            log.warning(f"No ONNX model found at {onnx_path}, falling back to rule-based.")
 
     async def run(self) -> None:
-        """Main async loop — runs until cancelled."""
         log.info('Strategist agent started.')
         self._state.emit('strategist', 'Agent started.')
 
@@ -74,7 +64,7 @@ class StrategistAgent:
             await asyncio.sleep(self._poll_interval)
 
     async def _tick(self) -> None:
-        """Evaluate all tickers and execute position logic."""
+        """Evaluate all tickers using the Neuro-Symbolic blend."""
         async with self._state.lock_signals:
             signals = dict(self._state.signals)
 
@@ -97,70 +87,59 @@ class StrategistAgent:
 
                 # Mark-to-market all open positions
                 mark_to_market(self._state, ticker, mid)
-                pos = self._state.positions.get(ticker)   # re-read after mtm
+                pos = self._state.positions.get(ticker)
 
-                # Stop-loss check
+                # 1. Neuro Layer: RL Inference
+                rl_action = 0 # Default HOLD
+                if self._ort_session and ind:
+                    sent = self._state.sentiment.get(ticker, 0.0)
+                    mom_norm = (ind.momentum / mid) * 100 if mid > 0 else 0
+                    obs = np.array([[ind.order_imbalance, mom_norm, sent, ind.spread_pct or 0]], dtype=np.float32)
+                    
+                    outputs = self._ort_session.run(None, {'input': obs})
+                    rl_action = int(np.argmax(outputs[0])) # 0=HOLD, 1=BUY, 2=SELL
+
+                # 2. Symbolic Layer: Safety & Execution Rules
+                if halted and pos:
+                    side_closed = pos.side
+                    pnl, summary = close_position(self._state, ticker, mid)
+                    self._state.emit('strategist', f'EMERGENCY HALT: {summary}')
+                    exec_side = "SELL" if side_closed == "LONG" else "BUY"
+                    self.live_executor.place_order(ticker, exec_side, quantity=1, price=mid)
+                    continue
+
                 if pos and pos.unrealized_pnl < MAX_LOSS_PER_TRADE:
                     side_closed = pos.side
                     pnl, summary = close_position(self._state, ticker, mid)
-                    self._state.emit('strategist', f'STOP-LOSS {summary}')
-                    # Execute live opposite trade to close
+                    self._state.emit('strategist', f'STOP-LOSS HIT: {summary}')
                     exec_side = "SELL" if side_closed == "LONG" else "BUY"
                     self.live_executor.place_order(ticker, exec_side, quantity=1, price=mid)
                     continue
 
-                # Guardian halt — liquidate immediately
-                if halted and pos is not None:
-                    side_closed = pos.side
-                    pnl, summary = close_position(self._state, ticker, mid)
-                    self._state.emit('strategist', f'HALT-CLOSE {summary}')
-                    # Execute live opposite trade to close
-                    exec_side = "SELL" if side_closed == "LONG" else "BUY"
-                    self.live_executor.place_order(ticker, exec_side, quantity=1, price=mid)
-                    continue
+                if halted: continue
 
-                if halted:
-                    continue
-
-                direction  = sig.direction
-                confidence = sig.confidence
-
-                if confidence < MIN_CONFIDENCE and direction != 'HOLD':
-                    continue   # signal not confident enough
-
-                # ---- Exit logic ----
-                if pos is not None:
+                # Entry logic (Neuro RL)
+                if not pos:
+                    if rl_action == 1: # RL says BUY
+                        open_position(self._state, ticker, 'LONG', mid)
+                        self._state.emit('strategist', f'RL-ENTER LONG {ticker} @ ₹{mid:.2f}')
+                        self.live_executor.place_order(ticker, "BUY", quantity=1, price=mid)
+                    elif rl_action == 2: # RL says SELL
+                        open_position(self._state, ticker, 'SHORT', mid)
+                        self._state.emit('strategist', f'RL-ENTER SHORT {ticker} @ ₹{mid:.2f}')
+                        self.live_executor.place_order(ticker, "SELL", quantity=1, price=mid)
+                
+                # Exit logic (Neuro-Symbolic blend)
+                else:
                     should_exit = (
-                        (pos.side == 'LONG'  and direction == 'SELL') or
-                        (pos.side == 'SHORT' and direction == 'BUY')
+                        (pos.side == 'LONG'  and (rl_action == 2 or sig.direction == 'SELL')) or
+                        (pos.side == 'SHORT' and (rl_action == 1 or sig.direction == 'BUY'))
                     )
                     if should_exit:
                         side_closed = pos.side
                         pnl, summary = close_position(self._state, ticker, mid)
-                        self._state.emit('strategist', f'EXIT {summary}')
-                        # Execute live opposite trade to close
+                        self._state.emit('strategist', f'RL/ORACLE EXIT: {summary}')
                         exec_side = "SELL" if side_closed == "LONG" else "BUY"
                         self.live_executor.place_order(ticker, exec_side, quantity=1, price=mid)
-                    continue
-
-                # ---- Entry logic ----
-                if direction == 'BUY':
-                    new_pos = open_position(self._state, ticker, 'LONG', mid)
-                    if new_pos:
-                        self._state.emit(
-                            'strategist',
-                            f'ENTER LONG  {ticker} @ ${mid:.2f}  '
-                            f'conf={confidence:.2f}',
-                        )
-                        self.live_executor.place_order(ticker, "BUY", quantity=1, price=mid)
-                elif direction == 'SELL':
-                    new_pos = open_position(self._state, ticker, 'SHORT', mid)
-                    if new_pos:
-                        self._state.emit(
-                            'strategist',
-                            f'ENTER SHORT {ticker} @ ${mid:.2f}  '
-                            f'conf={confidence:.2f}',
-                        )
-                        self.live_executor.place_order(ticker, "SELL", quantity=1, price=mid)
 
         self._state.agent_ticks['strategist'] += 1

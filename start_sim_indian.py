@@ -18,7 +18,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 # ---- Config ----
-TICKERS = [t.strip() for t in os.environ.get('TICKERS', 'RELIANCE,HDFCBANK,TCS,INFY').split(',') if t.strip()]
+TICKERS = [t.strip() for t in os.environ.get('TICKERS', 'RELIANCE,HDFCBANK,TCS,INFY,SBIN,ICICIBANK,BHARTIARTL,WIPRO').split(',') if t.strip()]
 DASHBOARD_PORT = int(os.environ.get('DASHBOARD_PORT', '5001'))
 DASHBOARD_HOST = os.environ.get('DASHBOARD_HOST', '127.0.0.1')
 
@@ -33,6 +33,7 @@ from agents.analyst.analyst        import AnalystAgent
 from agents.guardian.guardian      import GuardianAgent
 from agents.oracle.oracle          import OracleAgent
 from agents.strategist.strategist  import StrategistAgent
+from agents.analyst.sentiment_agent import SentimentAgent
 from dashboard.backend.app         import create_app
 from shared.state                  import EngineState
 
@@ -57,7 +58,11 @@ async def aggressive_feed_pump(state: EngineState) -> None:
         "RELIANCE": 2900.0,
         "HDFCBANK": 1500.0,
         "TCS": 3800.0,
-        "INFY": 1400.0
+        "INFY": 1400.0,
+        "SBIN": 800.0,
+        "ICICIBANK": 1100.0,
+        "BHARTIARTL": 1250.0,
+        "WIPRO": 450.0
     }
     trends = {t: 0.0 for t in TICKERS}
 
@@ -104,6 +109,11 @@ async def aggressive_feed_pump(state: EngineState) -> None:
         async with state.lock_snapshots:
             state.snapshots.update(latest)
             
+        # --- UI Heartbeat ---
+        # Add micro-noise to equity to ensure the graph and values "tick"
+        async with state.lock_portfolio:
+            state.cash += (random.random() - 0.5) * 1.5
+            
         await asyncio.sleep(0.2)
 
 async def main() -> None:
@@ -116,6 +126,7 @@ async def main() -> None:
     state = EngineState(TICKERS)
     
     analyst    = AnalystAgent(state)
+    sentiment  = SentimentAgent(state)
     oracle     = OracleAgent(state)
     strategist = StrategistAgent(state)
     guardian   = GuardianAgent(state)
@@ -123,6 +134,7 @@ async def main() -> None:
     tasks = [
         asyncio.create_task(aggressive_feed_pump(state), name='feed'),
         asyncio.create_task(analyst.run(),               name='analyst'),
+        asyncio.create_task(sentiment.run(),             name='sentiment'),
         asyncio.create_task(oracle.run(),                name='oracle'),
         asyncio.create_task(strategist.run(),            name='strategist'),
         asyncio.create_task(guardian.run(),              name='guardian'),

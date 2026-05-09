@@ -99,6 +99,7 @@ class EngineState:
         # Agent outputs
         self.indicators: Dict[str, IndicatorSnapshot] = {}
         self.signals: Dict[str, Signal] = {}
+        self.sentiment: Dict[str, float] = {t: 0.0 for t in tickers}
         self.positions: Dict[str, Optional[Position]] = {t: None for t in tickers}
         self.risk: Dict[str, RiskStatus] = {
             t: RiskStatus(ticker=t) for t in tickers
@@ -119,15 +120,19 @@ class EngineState:
 
         # Engine log (rolling 500 lines)
         self.log: Deque[str] = deque(maxlen=500)
+        self.sentiment_history: Dict[str, Deque[float]] = {
+            t: deque(maxlen=500) for t in tickers
+        }
 
         # Agent liveness counters
         self.agent_ticks: Dict[str, int] = {
-            'analyst': 0, 'oracle': 0, 'strategist': 0, 'guardian': 0,
+            'analyst': 0, 'oracle': 0, 'strategist': 0, 'guardian': 0, 'sentiment': 0
         }
 
         # Asyncio locks
         self.lock_snapshots    = asyncio.Lock()
         self.lock_indicators   = asyncio.Lock()
+        self.lock_sentiment    = asyncio.Lock()
         self.lock_signals      = asyncio.Lock()
         self.lock_positions    = asyncio.Lock()
         self.lock_risk         = asyncio.Lock()
@@ -233,6 +238,7 @@ class EngineState:
             'snapshots': self.snapshots,
             'indicators': {t: _ind(self.indicators.get(t)) for t in self.tickers},
             'signals': {t: _sig(self.signals.get(t)) for t in self.tickers},
+            'sentiment': {t: round(self.sentiment.get(t, 0.0), 3) for t in self.tickers},
             'positions': {t: _pos(self.positions.get(t)) for t in self.tickers},
             'risk': {t: _risk(self.risk[t]) for t in self.tickers},
             'portfolio': {

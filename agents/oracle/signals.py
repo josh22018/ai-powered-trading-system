@@ -28,6 +28,7 @@ import time
 W_IMBALANCE = 0.55
 W_MOMENTUM  = 0.30
 W_SPREAD    = 0.15
+W_SENTIMENT = 0.25  # Weight for AI Sentiment Analyst
 
 SIGNAL_THRESHOLD = 0.20       # minimum |score| for a directional signal
 MAX_SPREAD_PCT   = 2.0        # spread > this % → reduce confidence heavily
@@ -66,9 +67,9 @@ def _spread_confidence_penalty(spread_pct: float) -> float:
     return max(penalty, 0.1)
 
 
-def score_indicators(ind: IndicatorSnapshot) -> Tuple[float, str]:
+def score_indicators(ind: IndicatorSnapshot, sentiment: float = 0.0) -> Tuple[float, str]:
     """
-    Compute a composite signal score from an IndicatorSnapshot.
+    Compute a composite signal score from an IndicatorSnapshot and AI Sentiment.
 
     Returns:
         (score, reason_string)
@@ -78,15 +79,16 @@ def score_indicators(ind: IndicatorSnapshot) -> Tuple[float, str]:
     mom  = _normalise_momentum(ind.momentum, ind.mid_price)
     sprd = ind.spread_pct or 0.0
 
-    raw_score = (W_IMBALANCE * imb) + (W_MOMENTUM * mom)
+    # Combine Order Book + Momentum + Sentiment
+    raw_score = (W_IMBALANCE * imb) + (W_MOMENTUM * mom) + (W_SENTIMENT * sentiment)
 
     # Apply spread penalty
     penalty   = _spread_confidence_penalty(sprd)
     score     = raw_score * penalty
 
     reason = (
-        f'imb={imb:+.3f}  mom={mom:+.3f}  '
-        f'spread={sprd:.3f}%  penalty={penalty:.2f}'
+        f'imb={imb:+.2f} mom={mom:+.2f} sent={sentiment:+.2f} '
+        f'spread={sprd:.2f}% penalty={penalty:.2f}'
     )
     return score, reason
 
@@ -94,6 +96,7 @@ def score_indicators(ind: IndicatorSnapshot) -> Tuple[float, str]:
 def classify_signal(
     ticker: str,
     ind: IndicatorSnapshot,
+    sentiment: float = 0.0
 ) -> Signal:
     """
     Produce a Signal from an IndicatorSnapshot.
@@ -105,7 +108,7 @@ def classify_signal(
     Returns:
         Signal with direction ∈ {'BUY', 'SELL', 'HOLD'} and confidence.
     """
-    score, reason = score_indicators(ind)
+    score, reason = score_indicators(ind, sentiment)
     abs_score     = abs(score)
 
     if abs_score > SIGNAL_THRESHOLD:

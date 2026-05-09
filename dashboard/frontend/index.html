@@ -14,20 +14,21 @@
   <style>
     /* ---- Dark theme (default — matches 3D Book cyberpunk aesthetic) ---- */
     :root, [data-theme="dark"] {
-      --bg: #060614;
-      --panel: #0d0d24;
-      --border: #1e293b;
-      --accent: #7dd3fc;
-      --green: #4ade80;
-      --red: #f87171;
-      --yellow: #fbbf24;
-      --muted: #94a3b8;
-      --text: #e2e8f0;
-      --text-dim: #94a3b8;
+      --bg: #000000;
+      --bg-gradient: linear-gradient(180deg, #000000 0%, #0a0a0b 100%);
+      --panel: #09090b;
+      --border: #1e1e24;
+      --accent: #cbd5e1; /* Silver/Light Gray */
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --muted: #71717a;
+      --text: #fafafa;
+      --text-dim: #a1a1aa;
       --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-      --glow-green: rgba(74, 222, 128, 0.15);
-      --glow-red: rgba(248, 113, 113, 0.15);
-      --glow-accent: rgba(125, 211, 252, 0.1);
+      --glow-green: rgba(34, 197, 94, 0.1);
+      --glow-red: rgba(239, 68, 68, 0.1);
+      --glow-accent: rgba(255, 255, 255, 0.03);
     }
 
     /* ---- Light theme ---- */
@@ -60,6 +61,7 @@
 
     body {
       background: var(--bg);
+      background-image: var(--bg-gradient, none);
       color: var(--text);
       font-family: var(--mono);
       font-size: 13px;
@@ -72,18 +74,25 @@
 
     /* ---- Header ---- */
     header {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      justify-content: space-between;
-      padding: 10px 20px;
+      padding: 16px 32px;
+      height: 72px;
       border-bottom: 1px solid var(--border);
       background: var(--panel);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
     }
 
     header h1 {
-      font-size: 16px;
-      color: var(--accent);
+      font-size: 22px;
+      color: #fff;
+      font-weight: 950;
       letter-spacing: 2px;
+      margin: 0;
     }
 
     #status-pill {
@@ -121,6 +130,56 @@
       color: var(--accent);
     }
 
+    /* ---- Auth Overlay ---- */
+    #auth-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(20px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.4s;
+    }
+    #auth-overlay.visible { opacity: 1; pointer-events: auto; }
+
+    .auth-card {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 20px;
+      padding: 40px;
+      width: 400px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(0,0,0,1);
+    }
+    .auth-card h2 { font-size: 24px; margin-bottom: 8px; color: #fff; }
+    .auth-card p { color: #71717a; margin-bottom: 30px; font-size: 13px; }
+    .auth-input {
+      width: 100%;
+      background: #000;
+      border: 1px solid #27272a;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-family: var(--mono);
+      outline: none;
+    }
+    .auth-input:focus { border-color: #cbd5e1; }
+    .auth-btn {
+      width: 100%;
+      background: #fafafa;
+      color: #000;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
     /* ---- Main layout ---- */
     main {
       display: flex;
@@ -136,7 +195,7 @@
       border-radius: 10px;
       padding: 12px 14px;
       transition: background 0.3s, border-color 0.3s;
-      box-shadow: 0 0 20px var(--glow-accent);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
 
     .panel>h2 {
@@ -559,12 +618,13 @@
 
     .target-btn {
       background: var(--accent);
-      color: #fff;
+      color: #000000;
       border: none;
       border-radius: 4px;
       padding: 6px 14px;
       font-family: var(--mono);
       font-size: 12px;
+      font-weight: 800;
       cursor: pointer;
       letter-spacing: 0.5px;
     }
@@ -767,14 +827,14 @@
     }
 
     .sim-btn {
-      background: var(--green);
-      color: #ffffff;
+      background: #fafafa;
+      color: #000000;
       border: none;
       border-radius: 4px;
       padding: 6px 16px;
       font-family: var(--mono);
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
       letter-spacing: 0.5px;
     }
@@ -827,7 +887,7 @@
 
     .close-inv-btn:hover {
       border-color: var(--red);
-      background: #fee2e2;
+      background: var(--glow-red);
     }
 
     #inv-empty {
@@ -848,17 +908,15 @@
 
     .tab-btn {
       padding: 10px 20px;
-      font-family: var(--mono);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-dim);
       background: none;
       border: none;
-      border-bottom: 2px solid transparent;
       cursor: pointer;
-      margin-bottom: -1px;
-      transition: color 0.15s, border-color 0.15s;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      letter-spacing: 0.5px;
     }
 
     .tab-btn:hover {
@@ -921,6 +979,179 @@
       min-height: 80px;
     }
 
+    /* ---- Home Page (Groww Style) ---- */
+    .home-hero {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .index-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .index-card .name { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+    .index-card .val { font-size: 20px; font-weight: 700; }
+    .index-card .chg { font-size: 12px; }
+
+    .market-section-title { 
+      font-size: 14px; 
+      font-weight: 800; 
+      margin: 12px 0 6px; 
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+    .market-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+      gap: 16px;
+    }
+
+    /* ---- Carousel / Marquee ---- */
+    .carousel-container {
+      width: 100%;
+      overflow: hidden;
+      padding: 10px 0;
+      position: relative;
+      mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+    }
+    .carousel-track {
+      display: flex;
+      gap: 16px;
+      width: max-content;
+      animation: marquee-scroll 40s linear infinite;
+    }
+    .carousel-track:hover {
+      animation-play-state: paused;
+    }
+
+    @keyframes marquee-scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(calc(-50% - 8px)); }
+    }
+    .stock-thumb {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 16px;
+      aspect-ratio: 1 / 1;
+      width: 165px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .stock-thumb:hover { 
+      transform: translateY(-8px) scale(1.02); 
+      border-color: var(--accent); 
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      background: #18181b;
+    }
+    .stock-thumb .t { font-weight: 800; font-size: 16px; color: #fff; margin-top: 10px; }
+    .stock-thumb .p { font-size: 13px; color: var(--text-dim); }
+
+    .thumb-footer {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 10px;
+    }
+
+    .sentiment-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .brandmark {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px; color: #fff;
+      flex-shrink: 0;
+      overflow: hidden;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .brandmark img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      padding: 6px;
+      background: #fff;
+    }
+    
+    .price-badge {
+      font-size: 12px; 
+      font-weight: 700;
+      white-space: nowrap;
+      margin-left: 10px;
+      text-align: right;
+    }
+
+    /* ---- Profile Page ---- */
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 24px;
+      background: var(--panel);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+    .avatar {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #cbd5e1, #64748b);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; color: #000; font-weight: 700;
+    }
+    .profile-info h3 { font-size: 20px; margin-bottom: 4px; }
+    .profile-info p { color: var(--text-dim); font-size: 12px; }
+
+    .profile-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .settings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .settings-item {
+      background: var(--panel);
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .settings-item:hover { background: #18181b; }
+
     @media (max-width: 900px) {
       .portfolio-grid {
         grid-template-columns: repeat(3, 1fr);
@@ -962,29 +1193,119 @@
 <body>
 
   <header>
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
-        <span id="theme-icon">LIGHT</span>
+    <h1 style="margin:0;">Kairos X</h1>
+    
+    <nav class="tab-bar" style="border:none; padding:0; background:none; border-bottom:none; margin:0; display:flex; justify-content:center;">
+      <button class="tab-btn active" onclick="switchPage('home')">Explore</button>
+      <button class="tab-btn" onclick="switchPage('market')">Market</button>
+      <button class="tab-btn" onclick="switchPage('3dbook')">3D Book</button>
+      <button class="tab-btn" onclick="switchPage('overview')">Portfolio</button>
+      <button class="tab-btn" onclick="switchPage('system')">System</button>
+    </nav>
+
+    <div style="display:flex; align-items:center; gap:16px; justify-content:flex-end;">
+      <span id="clock" style="color:var(--text-dim); font-size:11px; font-family:var(--mono);"></span>
+      <div id="status-pill">Connected</div>
+      <button class="theme-toggle" onclick="switchPage('profile')" style="border-radius:20px; padding:4px 14px;">
+        <span id="user-display">TRADER</span>
       </button>
-    </div>
-    <h1>KAIROS X</h1>
-    <div style="display:flex;align-items:center;gap:12px;">
-      <span id="clock" style="color:var(--text-dim);font-size:11px;"></span>
-      <span id="status-pill" class="disconnected">DISCONNECTED</span>
+      <button class="theme-toggle" onclick="logout()" style="border:none; color:var(--red);">
+        <span>LOGOUT</span>
+      </button>
     </div>
   </header>
 
-  <nav class="tab-bar">
-    <button class="tab-btn active" onclick="switchPage('overview')">Overview</button>
-    <button class="tab-btn" onclick="switchPage('market')">Market</button>
-    <button class="tab-btn" onclick="switchPage('3dbook')">3D Book</button>
-    <button class="tab-btn" onclick="switchPage('invest')">Invest</button>
-    <button class="tab-btn" onclick="switchPage('system')">System</button>
-  </nav>
+  <!-- Login Overlay -->
+  <div id="auth-overlay">
+    <div class="auth-card">
+      <h2>Welcome to Kairos X</h2>
+      <p>The next generation HFT trading terminal</p>
+      <input type="text" id="login-user" class="auth-input" placeholder="Username" value="Karthik" />
+      <input type="password" id="login-pass" class="auth-input" placeholder="Password" value="••••••••" />
+      <button class="auth-btn" onclick="login()">SIGN IN</button>
+      <p style="margin-top:20px; font-size:11px;">Don't have an account? <span style="color:#fff; cursor:pointer;">Request Access</span></p>
+    </div>
+  </div>
 
   <main>
 
-    <div class="page-section visible" data-page="overview">
+    <!-- PAGE: HOME (GROWW STYLE) -->
+    <div class="page-section visible" data-page="home">
+      <div class="home-hero" id="home-indices">
+        <!-- JS Populated -->
+      </div>
+      
+      <div class="market-section-title">
+        <span>Trending Tickers</span>
+        <div style="flex:1; height:1px; background:var(--border);"></div>
+      </div>
+      <div class="carousel-container">
+        <div class="carousel-track" id="home-trending">
+          <!-- JS Populated -->
+        </div>
+      </div>
+
+      <div class="market-section-title">
+        <span>Top Gainers</span>
+        <div style="flex:1; height:1px; background:var(--border);"></div>
+      </div>
+      <div class="carousel-container">
+        <div class="carousel-track" id="home-gainers">
+          <!-- JS Populated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: PROFILE -->
+    <div class="page-section" data-page="profile">
+      <div class="profile-header">
+        <div class="avatar" id="prof-avatar">K</div>
+        <div class="profile-info">
+          <h3 id="prof-name">Karthik G.</h3>
+          <p id="prof-email">karthik@kairos.ai</p>
+        </div>
+      </div>
+
+      <div class="profile-grid">
+        <div class="settings-list">
+          <div class="settings-item">
+            <span>Account Status</span>
+            <span style="color:var(--green); font-weight:700;">PRO ALPHA</span>
+          </div>
+          <div class="settings-item">
+            <span>API Connectivity</span>
+            <span style="color:var(--green);">UPSTOX LIVE</span>
+          </div>
+          <div class="settings-item">
+            <span>Server Latency</span>
+            <span>0.4ms</span>
+          </div>
+          <div class="settings-item" onclick="toggleTheme()">
+             <span>Toggle Theme</span>
+             <span id="theme-icon-prof">🌙</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Financial Summary</h2>
+          <div class="portfolio-grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="kpi">
+              <div class="label">WALLET BALANCE</div>
+              <div class="value" id="prof-balance">₹10,00,000</div>
+            </div>
+            <div class="kpi">
+              <div class="label">MARGIN USED</div>
+              <div class="value">₹0.00</div>
+            </div>
+          </div>
+          <div style="margin-top:20px; color:var(--text-dim); font-size:11px;">
+            Kairos X HFT Engine - Registered to Karthik Garikipati
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-section" data-page="overview">
 
       <!-- Portfolio -->
       <div class="panel resizable" id="portfolio" style="flex: 1; display: flex; flex-direction: column;">
@@ -1026,7 +1347,7 @@
         <h2>Target Calculator</h2>
         <div class="target-calc-grid">
           <div class="target-input-group">
-            <label>Target Equity ($)</label>
+            <label>Target Equity (₹)</label>
             <div class="target-input-row">
               <input type="number" id="target-input" placeholder="e.g. 110000" min="0" step="100" />
               <button class="target-btn" onclick="calcTarget()">SET</button>
@@ -1057,7 +1378,7 @@
       <div class="panel resizable" id="forecast-panel" style="flex: 1; display: flex; flex-direction: column;">
         <h2>Investment Forecast</h2>
         <div class="forecast-input-row">
-          <span style="font-size:11px;color:var(--text-dim);">Amount ($)</span>
+          <span style="font-size:11px;color:var(--text-dim);">Amount (₹)</span>
           <input type="number" id="fc-amount" placeholder="e.g. 10000" min="0" step="100" />
           <span style="font-size:11px;color:var(--text-dim);">Horizon</span>
           <select id="fc-months">
@@ -1100,7 +1421,7 @@
       <div class="panel resizable" id="simulator-panel" style="flex: 1;">
         <h2>Live Portfolio Simulator</h2>
         <div class="sim-form-row">
-          <span style="font-size:11px;color:var(--text-dim);">Invest ($)</span>
+          <span style="font-size:11px;color:var(--text-dim);">Invest (₹)</span>
           <input type="number" id="sim-amount" placeholder="e.g. 10000" min="1" step="100" />
           <button class="sim-btn" onclick="investNow()">INVEST NOW</button>
           <span style="font-size:11px;color:var(--text-dim);margin-left:8px;">
@@ -1259,7 +1580,7 @@
       if (!TD[t]) TD[t] = {
         ohlc: { current: null, history: [] },
         vwap: [], ema: [], markers: [],
-        lastSigDir: null,
+        lastSigDir: null, sentiment: 0.0,
         latestSnap: null, latestSig: null, latestPos: null, latestRisk: null,
       };
     }
@@ -1530,7 +1851,7 @@
     // ============================================================
     const $ = id => document.getElementById(id);
     const fmt = (n, d = 2) => n == null ? '—' : Number(n).toFixed(d);
-    const fmtK = n => n == null ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtK = n => n == null ? '—' : '₹' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const pctCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu';
     const pctStr = v => v == null ? '—' : (v > 0 ? '+' : '') + fmt(v, 2) + '%';
 
@@ -1542,7 +1863,7 @@
       if (!el || !snap) return;
 
       const midEl = $('ticker-mid-display');
-      if (midEl) midEl.textContent = `$${fmt(snap.mid_price, 4)}  sprd $${fmt(snap.spread, 4)}`;
+      if (midEl) midEl.textContent = `₹${fmt(snap.mid_price, 2)}  sprd ₹${fmt(snap.spread, 2)}`;
 
       const bids = (snap.bids || []).slice(0, 5);
       const asks = (snap.asks || []).slice(0, 5);
@@ -1550,11 +1871,11 @@
     <div class="book-grid">
       <div>
         <div class="col-hdr"><span>BID</span><span>SHARES</span></div>
-        ${bids.map(([p, s]) => `<div class="book-row bid"><span class="price">$${fmt(p, 4)}</span><span class="shares">${s.toLocaleString()}</span></div>`).join('')}
+        ${bids.map(([p, s]) => `<div class="book-row bid"><span class="price">₹${fmt(p, 2)}</span><span class="shares">${s.toLocaleString()}</span></div>`).join('')}
       </div>
       <div>
         <div class="col-hdr"><span>ASK</span><span>SHARES</span></div>
-        ${asks.map(([p, s]) => `<div class="book-row ask"><span class="price">$${fmt(p, 4)}</span><span class="shares">${s.toLocaleString()}</span></div>`).join('')}
+        ${asks.map(([p, s]) => `<div class="book-row ask"><span class="price">₹${fmt(p, 2)}</span><span class="shares">${s.toLocaleString()}</span></div>`).join('')}
       </div>
     </div>`;
     }
@@ -1570,8 +1891,9 @@
       const fillColor = clamped > 0.1 ? C.green : clamped < -0.1 ? C.red : '#64748b';
 
       const rows = [
-        ['VWAP', `$${fmt(snap.vwap, 4)}`],
-        ['EMA', `$${fmt(snap.ema_price, 4)}`],
+        ['Sentiment', `${fmt(TD[selectedTicker].sentiment, 2)}`],
+        ['VWAP', `₹${fmt(snap.vwap, 2)}`],
+        ['EMA', `₹${fmt(snap.ema_price, 2)}`],
         ['Mom', fmt(snap.momentum, 4)],
         ['Sprd%', `${fmt(snap.spread_pct, 3)}%`],
         ['BidVol', (snap.bid_volume || 0).toLocaleString()],
@@ -1620,10 +1942,10 @@
       <div class="pos-item"><span class="pi-label">SIDE</span>
         <span class="pi-val" style="color:${pos.side === 'LONG' ? C.green : C.red}">${pos.side}</span></div>
       <div class="pos-item"><span class="pi-label">SHARES</span>  <span class="pi-val">${pos.shares}</span></div>
-      <div class="pos-item"><span class="pi-label">ENTRY</span>   <span class="pi-val">$${fmt(pos.entry_price, 4)}</span></div>
-      <div class="pos-item"><span class="pi-label">CURRENT</span> <span class="pi-val">$${fmt(pos.current_price, 4)}</span></div>
+      <div class="pos-item"><span class="pi-label">ENTRY</span>   <span class="pi-val">₹${fmt(pos.entry_price, 2)}</span></div>
+      <div class="pos-item"><span class="pi-label">CURRENT</span> <span class="pi-val">₹${fmt(pos.current_price, 2)}</span></div>
       <div class="pos-item"><span class="pi-label">UNREAL PNL</span>
-        <span class="pi-val ${cls}">$${fmt(pos.unrealized_pnl, 2)}</span></div>
+        <span class="pi-val ${cls}">₹${fmt(pos.unrealized_pnl, 2)}</span></div>
       <div class="pos-item"><span class="pi-label">TRADES</span>  <span class="pi-val">${pos.trade_count}</span></div>
     </div>`;
     }
@@ -1648,6 +1970,10 @@
       set('p-rpnl', (pf.realized_pnl >= 0 ? '+' : '') + fmtK(pf.realized_pnl), pctCls(pf.realized_pnl));
       set('p-dd', pctStr(pf.drawdown_pct), pctCls(pf.drawdown_pct));
       set('p-cap', fmtK(pf.initial_capital));
+      
+      // Update Profile Page balance
+      const profBal = $('prof-balance');
+      if (profBal) profBal.textContent = fmtK(pf.equity);
     }
 
     function renderAgents(ticks) {
@@ -1716,9 +2042,11 @@
             const pos = (data.positions || {})[t];
             const risk = (data.risk || {})[t];
             const d = TD[t];
+            const sent = (data.sentiment || {})[t];
 
             if (ind) { d.latestSnap = ind; processTick(t, ind); }
             if (sig) { d.latestSig = sig; processSignal(t, sig); }
+            if (sent != null) { d.sentiment = sent; }
             if (pos) { d.latestPos = pos; }
             if (risk) { d.latestRisk = risk; }
 
@@ -1767,7 +2095,8 @@
     // Clock
     // ============================================================
     setInterval(() => {
-      $('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const el = $('clock');
+      if (el) el.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
     }, 1000);
 
     // ============================================================
@@ -2045,14 +2374,170 @@
     // ============================================================
     // Tab / page switching
     // ============================================================
+    // ============================================================
+    // ============================================================
+    // Auth & Navigation
+    // ============================================================
+    let currentUser = null;
+
+    window.checkAuth = async function() {
+      console.log("Checking auth...");
+      const user = localStorage.getItem('kairos_user');
+      if (user) {
+        currentUser = user;
+        const userDisp = $('user-display');
+        if (userDisp) userDisp.textContent = user.toUpperCase();
+        $('auth-overlay').classList.remove('visible');
+        fetchOverview();
+      } else {
+        $('auth-overlay').classList.add('visible');
+      }
+    };
+
+    window.login = async function() {
+      console.log("Attempting login...");
+      const username = $('login-user').value;
+      const password = $('login-pass').value;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (!res.ok) throw new Error("Server error");
+        const data = await res.json();
+        if (data.status === 'success') {
+          localStorage.setItem('kairos_user', data.user);
+          currentUser = data.user;
+          const userDisp = $('user-display');
+          if (userDisp) userDisp.textContent = data.user.toUpperCase();
+          $('auth-overlay').classList.remove('visible');
+          switchPage('home');
+        } else {
+          alert('Login failed: ' + (data.message || 'Invalid credentials'));
+        }
+      } catch (e) { 
+        console.error(e);
+        alert('Login failed. Check backend connection.'); 
+      }
+    };
+
+    window.logout = function() {
+      localStorage.removeItem('kairos_user');
+      location.reload();
+    };
+
+    async function fetchOverview() {
+      try {
+        const res = await fetch('/api/market/overview');
+        const data = await res.json();
+        renderHome(data);
+      } catch (e) { console.error('Overview fetch failed', e); }
+    }
+
+    async function fetchProfile() {
+      try {
+        const res = await fetch('/api/profile');
+        const data = await res.json();
+        $('prof-name').textContent = data.username;
+        $('prof-email').textContent = data.email;
+        $('prof-avatar').textContent = data.username[0].toUpperCase();
+        $('prof-balance').textContent = fmtK(data.balance);
+      } catch (e) { }
+    }
+
+    function getBrandmark(ticker) {
+      const domains = {
+        'RELIANCE': 'ril.com',
+        'TCS': 'tcs.com',
+        'HDFCBANK': 'hdfcbank.com',
+        'INFY': 'infosys.com',
+        'SBIN': 'sbi.co.in',
+        'ICICIBANK': 'icicibank.com',
+        'BHARTIARTL': 'airtel.in',
+        'WIPRO': 'wipro.com',
+        'LT': 'larsentoubro.com',
+        'AXISBANK': 'axisbank.com'
+      };
+      const colors = {
+        'RELIANCE': 'linear-gradient(135deg, #00529b, #007cc3)',
+        'TCS': 'linear-gradient(135deg, #1b263b, #415a77)',
+        'HDFCBANK': 'linear-gradient(135deg, #ed1c24, #004a8f)',
+        'INFY': 'linear-gradient(135deg, #007cc3, #00b4e5)',
+        'SBIN': 'linear-gradient(135deg, #00a9e0, #004a8f)',
+        'ICICIBANK': 'linear-gradient(135deg, #f37021, #9e2024)',
+        'BHARTIARTL': 'linear-gradient(135deg, #e31e24, #91191c)',
+        'WIPRO': 'linear-gradient(135deg, #2b3990, #1b263b)',
+        'LT': 'linear-gradient(135deg, #f9a825, #f57f17)'
+      };
+      
+      const domain = domains[ticker];
+      if (domain) {
+        // Using Google Enterprise Favicon service for better reliability
+        const logoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        return `<div class="brandmark"><img src="${logoUrl}" onerror="this.parentElement.innerHTML='${ticker[0]}'; this.parentElement.style.background='${colors[ticker] || '#475569'}'" /></div>`;
+      }
+      
+      const bg = colors[ticker] || `linear-gradient(135deg, #475569, #1e293b)`;
+      return `<div class="brandmark" style="background:${bg}">${ticker[0]}</div>`;
+    }
+
+    function renderHome(data) {
+      if (!data) return;
+      
+      // Render Indices
+      $('home-indices').innerHTML = (data.indices || []).map(idx => `
+        <div class="index-card">
+          <div class="name">${idx.name}</div>
+          <div class="val">₹${fmt(idx.value, 2)}</div>
+          <div class="chg ${pctCls(idx.pct)}">${idx.change >= 0 ? '+' : ''}${fmt(idx.change, 2)} (${pctStr(idx.pct)})</div>
+        </div>
+      `).join('');
+
+      // Render Gainers (Carousel)
+      const gHtml = (data.gainers || []).map(s => `
+        <div class="stock-thumb" onclick="switchPage('market'); switchTicker('${s.ticker}')">
+          <div style="display:flex; justify-content:space-between; width:100%; align-items:flex-start;">
+            ${getBrandmark(s.ticker)}
+            <span class="pos price-badge">+${fmt(s.change, 2)}%</span>
+          </div>
+          <div style="margin-top:auto;">
+            <div class="t" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.ticker}</div>
+            <div class="p">₹${fmt(s.price, 2)}</div>
+          </div>
+        </div>
+      `).join('');
+      $('home-gainers').innerHTML = gHtml + gHtml;
+
+      // Render Trending (Carousel)
+      const trendingStocks = (data.gainers || []).concat(data.losers || []);
+      const trendingHtml = trendingStocks.map(s => `
+        <div class="stock-thumb" onclick="switchPage('market'); switchTicker('${s.ticker}')">
+          <div style="display:flex; justify-content:space-between; width:100%; align-items:flex-start;">
+            ${getBrandmark(s.ticker)}
+            <span class="${pctCls(s.change)} price-badge">${s.change >= 0 ? '+' : ''}${fmt(s.change, 2)}%</span>
+          </div>
+          <div style="margin-top:auto;">
+            <div class="t" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.ticker}</div>
+            <div class="p">₹${fmt(s.price, 2)}</div>
+          </div>
+        </div>
+      `).join('');
+      $('home-trending').innerHTML = trendingHtml + trendingHtml;
+    }
+
     function switchPage(page) {
       document.querySelectorAll('.page-section').forEach(el => {
         el.classList.toggle('visible', el.dataset.page === page);
       });
       document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.textContent.trim().toLowerCase() === page ||
-          btn.getAttribute('onclick').includes("'" + page + "'"));
+        // Updated active check for header tabs
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + page + "'"));
       });
+
+      if (page === 'home') fetchOverview();
+      if (page === 'profile') fetchProfile();
+
       // Charts need resize after becoming visible
       if (page === 'market' && mainChart) {
         requestAnimationFrame(() => {
@@ -2097,10 +2582,10 @@
       const width = container.clientWidth || window.innerWidth || 800;
       const height = container.clientHeight || 600;
 
-      // Scene — deep dark slate with subtle fog
+      // Scene — Pure black for premium feel
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0f172a);
-      scene.fog = new THREE.FogExp2(0x0f172a, 0.008);
+      scene.background = new THREE.Color(0x000000);
+      scene.fog = new THREE.FogExp2(0x000000, 0.008);
 
       // Camera
       camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 500);
@@ -2135,7 +2620,7 @@
       });
 
       // Lighting — dramatic multi-source
-      const ambientLight = new THREE.AmbientLight(0x334155, 0.6);
+      const ambientLight = new THREE.AmbientLight(0x111111, 0.6);
       scene.add(ambientLight);
 
       const keyLight = new THREE.DirectionalLight(0xf8fafc, 0.6);
@@ -2167,8 +2652,8 @@
       // Reflective ground plane
       const groundGeo = new THREE.PlaneGeometry(80, 80);
       const groundMat = new THREE.MeshPhongMaterial({
-        color: 0x0f172a, specular: 0x1e293b, shininess: 20,
-        transparent: true, opacity: 0.9
+        color: 0x000000, specular: 0x222222, shininess: 30,
+        transparent: true, opacity: 0.95
       });
       gridFloor = new THREE.Mesh(groundGeo, groundMat);
       gridFloor.rotation.x = -Math.PI / 2;
@@ -2178,7 +2663,7 @@
 
       // Center axis glow line (mid-price marker)
       const axisGeo = new THREE.BoxGeometry(0.05, 0.05, BOOK_HISTORY_LEN * TIME_GAP + 10);
-      const axisMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.4 });
+      const axisMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
       const axisLine = new THREE.Mesh(axisGeo, axisMat);
       axisLine.position.set(0, 0.03, -(BOOK_HISTORY_LEN * TIME_GAP) / 2);
       scene.add(axisLine);
@@ -2488,6 +2973,13 @@
 
     initResizable('overview-resize', 'portfolio', 'target-panel');
     initResizable('invest-resize', 'forecast-panel', 'simulator-panel');
+
+    // Enter key for login
+    $('login-pass').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') login();
+    });
+
+    window.checkAuth();
   </script>
 </body>
 

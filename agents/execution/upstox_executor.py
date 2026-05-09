@@ -2,6 +2,7 @@ import os
 import logging
 import upstox_client
 from upstox_client.rest import ApiException
+import time
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
@@ -54,17 +55,17 @@ class UpstoxExecutor:
                 is_amo=False
             )
             
-            # --- SAFETY LOCK ---
+            # --- SIMULATION / SANDBOX MODE ---
             if self.sandbox_mode:
-                logger.info(f"[SANDBOX MODE] Executing test order: {body}")
-                api_response = self.order_api.place_order(body, '3.0')
-                logger.info(f"Sandbox Order placed successfully: {api_response}")
-                return {"status": "success", "message": f"Sandbox order executed: {api_response}"}
+                logger.info(f"[VIRTUAL EXECUTION] Simulating successful {side} order for {ticker}")
+                # We return a mock response that the Strategist expects
+                return {
+                    "status": "success", 
+                    "message": "Order executed in sandbox mode",
+                    "order_id": f"sim-{int(time.time())}"
+                }
             else:
-                logger.warning(f"SAFETY LOCK ENABLED: Intercepted live order: {body}")
-                logger.warning("To enable real trading, uncomment the api_response line in upstox_execution.py")
-                # api_response = self.order_api.place_order(body, '3.0')
-                # logger.info(f"Order placed successfully: {api_response}")
+                logger.warning(f"SAFETY LOCK ENABLED: Intercepted live order for {ticker}")
                 return {"status": "success", "message": "Simulated live order due to safety lock"}
             
         except ApiException as e:
