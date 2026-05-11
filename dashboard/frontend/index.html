@@ -2589,8 +2589,8 @@
 
       // Camera
       camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 500);
-      camera.position.set(16, 14, 25); // Zoomed in closer and lower
-      camera.lookAt(0, 3, 0);
+      camera.position.set(14, 12, 18); // Zoomed in closer and lower
+      camera.lookAt(0, 2, 0);
 
       // Renderer
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -2607,11 +2607,11 @@
       orbitControls.dampingFactor = 0.08;
       orbitControls.enablePan = true;
       orbitControls.minDistance = 5;
-      orbitControls.maxDistance = 80;
+      orbitControls.maxDistance = 100;
       orbitControls.maxPolarAngle = Math.PI / 2.1;
-      orbitControls.target.set(0, 3, -15); // Look further down the Z-axis of the plot
+      orbitControls.target.set(0, 2, -25); // Centered on the data flow
       orbitControls.autoRotate = true;
-      orbitControls.autoRotateSpeed = 0.2;
+      orbitControls.autoRotateSpeed = 0.15;
 
       // Stop auto-rotate on user interaction
       renderer.domElement.addEventListener('pointerdown', () => {
@@ -2643,17 +2643,17 @@
       askGlow.position.set(5, 10, 0);
       scene.add(askGlow);
 
-      // Ground grid
-      const gridHelper = new THREE.GridHelper(80, 40, 0x1e293b, 0x0f172a);
-      // Removed scale to keep grid squares perfect, 80x80 fits nicely
-      gridHelper.position.set(0, -0.01, -30);
+      // Ground grid - Narrower and longer to fit the data flow
+      const gridHelper = new THREE.GridHelper(70, 35, 0x1e293b, 0x0f172a);
+      gridHelper.scale.x = 0.45; // Shrink width (30 units wide)
+      gridHelper.position.set(0, -0.01, -30); // Centered over history
       scene.add(gridHelper);
-
-      // Reflective ground plane
-      const groundGeo = new THREE.PlaneGeometry(80, 80);
+ 
+      // Reflective ground plane - Matches the tighter grid
+      const groundGeo = new THREE.PlaneGeometry(31, 71);
       const groundMat = new THREE.MeshPhongMaterial({
-        color: 0x000000, specular: 0x222222, shininess: 30,
-        transparent: true, opacity: 0.95
+        color: 0x000000, specular: 0x111111, shininess: 20,
+        transparent: true, opacity: 0.9
       });
       gridFloor = new THREE.Mesh(groundGeo, groundMat);
       gridFloor.rotation.x = -Math.PI / 2;
