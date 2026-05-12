@@ -2831,8 +2831,8 @@
       const mid3d = document.getElementById('book3d-mid');
       const spr3d = document.getElementById('book3d-spread');
       const dep3d = document.getElementById('book3d-depth');
-      if (mid3d && snap.mid_price != null) mid3d.textContent = '$' + Number(snap.mid_price).toFixed(4);
-      if (spr3d && snap.spread != null) spr3d.textContent = 'spread $' + Number(snap.spread).toFixed(4);
+      if (mid3d && snap.mid_price != null) mid3d.textContent = '₹' + Number(snap.mid_price).toFixed(4);
+      if (spr3d && snap.spread != null) spr3d.textContent = 'spread ₹' + Number(snap.spread).toFixed(4);
       if (dep3d) {
         const bv = snap.total_bid_volume || 0;
         const av = snap.total_ask_volume || 0;
